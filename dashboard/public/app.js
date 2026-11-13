@@ -2586,7 +2586,7 @@ function filterAndDisplayProjects() {
     const projStatus = p.status || (p.info && p.info.status) || (p.hasVertical9x16 || p.hasSquareSubtitled ? 'ready' : (p.hasFinal ? 'in_progress' : 'in_progress'));
 
     const postedLangs = p.postedLanguages || [];
-    const isPostedAny = projStatus === 'posted' || projStatus === 'posted_pt' || projStatus === 'posted_es' || projStatus === 'posted_both' || postedLangs.length > 0 || (p.info && (p.info.status === 'posted' || p.info.youtube || p.info.youtubeUploads));
+    const isPostedAny = projStatus === 'posted' || projStatus === 'posted_pt' || projStatus === 'posted_es' || projStatus === 'posted_en' || projStatus === 'posted_both' || postedLangs.length > 0 || (p.info && (p.info.status === 'posted' || p.info.youtube || p.info.youtubeUploads));
     const isPT = postedLangs.includes('pt') || projStatus === 'posted_pt' || projStatus === 'posted_both' || (isPostedAny && (!p.info?.youtubeUploads || p.info?.youtubeUploads?.pt || (p.info?.youtube && !p.info?.youtubeUploads?.es)));
     const isES = postedLangs.includes('es') || projStatus === 'posted_es' || projStatus === 'posted_both' || !!(p.info?.youtubeUploads && p.info?.youtubeUploads?.es);
     const isBoth = isPT && isES;
@@ -2597,6 +2597,8 @@ function filterAndDisplayProjects() {
       return isPT;
     } else if (currentProjectFilter === 'posted_es') {
       return isES;
+    } else if (currentProjectFilter === 'posted_en') {
+      return postedLangs.includes('en') || projStatus === 'posted_en';
     } else if (currentProjectFilter === 'posted_both') {
       return isBoth;
     } else if (currentProjectFilter === 'ready') {
@@ -2654,6 +2656,7 @@ function filterAndDisplayProjects() {
     const isPostedBoth = (isPostedPT && isPostedES) || projStatus === 'posted_both';
 
     // Computa Status para Custom Dropdown
+    const isPostedEN = postedLangs.includes('en') || projStatus === 'posted_en';
     let currentStatusVal = 'in_progress';
     let currentStatusLabel = 'Em Edição';
     let currentStatusDot = 'in_progress';
@@ -2666,6 +2669,10 @@ function filterAndDisplayProjects() {
       currentStatusVal = 'posted_es';
       currentStatusLabel = 'Postado (ESP)';
       currentStatusDot = 'posted_es';
+    } else if (projStatus === 'posted_en' || (isPostedEN && !isPostedPT && !isPostedES)) {
+      currentStatusVal = 'posted_en';
+      currentStatusLabel = 'Postado (ENG)';
+      currentStatusDot = 'posted_en';
     } else if ((isPostedPT && !isPostedBoth) || projStatus === 'posted_pt' || (projStatus === 'posted' && !isPostedES)) {
       currentStatusVal = 'posted_pt';
       currentStatusLabel = 'Postado (PT)';
@@ -2775,6 +2782,10 @@ function filterAndDisplayProjects() {
               <div class="status-option ${currentStatusVal === 'posted_es' ? 'active' : ''}" onclick="selectProjectStatusOption('${p.name}', 'posted_es')">
                 <span class="status-dot-indicator posted_es"></span>
                 <span>Postado (ESP)</span>
+              </div>
+              <div class="status-option ${currentStatusVal === 'posted_en' ? 'active' : ''}" onclick="selectProjectStatusOption('${p.name}', 'posted_en')">
+                <span class="status-dot-indicator posted_en"></span>
+                <span>Postado (ENG)</span>
               </div>
               <div class="status-option ${currentStatusVal === 'posted_both' ? 'active' : ''}" onclick="selectProjectStatusOption('${p.name}', 'posted_both')">
                 <span class="status-dot-indicator posted_both"></span>

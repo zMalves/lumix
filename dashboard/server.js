@@ -170,6 +170,7 @@ function getProjectDetails(folderName) {
   }
   if (info.status === 'posted_pt') postedLangs.add('pt');
   if (info.status === 'posted_es') postedLangs.add('es');
+  if (info.status === 'posted_en') postedLangs.add('en');
   if (info.status === 'posted_both') { postedLangs.add('pt'); postedLangs.add('es'); }
   if (info.status === 'posted' && postedLangs.size === 0) postedLangs.add('pt');
 
@@ -253,6 +254,7 @@ function getProjectDetails(folderName) {
     if (isPostedBoth) computedStatus = 'posted_both';
     else if (isPostedES) computedStatus = 'posted_es';
     else if (isPostedPT) computedStatus = 'posted_pt';
+    else if (postedLangs.has('en')) computedStatus = 'posted_en';
     else computedStatus = (fs.existsSync(vertical9x16Video) ? 'ready' : (fs.existsSync(finalVideo) ? 'assembled' : 'in_progress'));
   }
 
@@ -964,6 +966,9 @@ const server = http.createServer(async (req, res) => {
         }
         if (info.status === 'posted_es' && !info.youtubeUploads.es) {
           info.youtubeUploads.es = { manual: true, publishedAt: new Date().toISOString() };
+        }
+        if (info.status === 'posted_en' && !info.youtubeUploads.en) {
+          info.youtubeUploads.en = { manual: true, publishedAt: new Date().toISOString() };
         }
         if (info.status === 'posted_both') {
           if (!info.youtubeUploads.pt) info.youtubeUploads.pt = info.youtube || { manual: true, publishedAt: new Date().toISOString() };
