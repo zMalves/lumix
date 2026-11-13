@@ -1,0 +1,284 @@
+/* ==========================================================================
+   LUMIX STUDIO — DESIGN TOKENS
+   Fonte única de verdade para cores, tipografia, espaçamento, raio, sombra,
+   movimento e z-index. Documentação completa: docs/DESIGN.md
+   Carregar ANTES de style.css.
+   ========================================================================== */
+
+:root {
+  /* ---------- 1. PRIMITIVOS: NEUTROS (ink, frio) ---------- */
+  --neutral-0:   #ffffff;
+  --neutral-25:  #fcfcfd;
+  --neutral-50:  #f6f7fb;
+  --neutral-100: #eef0f6;
+  --neutral-200: #e1e4ee;
+  --neutral-300: #c9cedc;
+  --neutral-400: #9aa2b6;
+  --neutral-500: #6b7389;
+  --neutral-600: #4e5669;
+  --neutral-700: #363d4f;
+  --neutral-800: #1f2535;
+  --neutral-900: #121729;
+  --neutral-950: #0b0e1a;
+
+  /* ---------- 2. PRIMITIVOS: MARCA (índigo → violeta → magenta) ---------- */
+  --brand-50:  #f2f0ff;
+  --brand-100: #e5e1ff;
+  --brand-200: #cfc8ff;
+  --brand-300: #ab9fff;
+  --brand-400: #8a79ff;
+  --brand-500: #6d5ef5;
+  --brand-600: #5b47e8;
+  --brand-700: #4a37c9;
+  --brand-800: #3b2ca0;
+  --brand-900: #2d227a;
+  --magenta-400: #e26cf0;
+  --magenta-500: #d946ef;
+
+  /* ---------- 3. PRIMITIVOS: SEMÂNTICOS ---------- */
+  --green-50:  #ecfdf5;
+  --green-200: #a7f3d0;
+  --green-600: #059669;
+  --green-700: #047857;
+
+  --amber-50:  #fffbeb;
+  --amber-200: #fde68a;
+  --amber-500: #f59e0b;
+  --amber-700: #b45309;
+
+  --red-50:    #fef2f2;
+  --red-200:   #fecaca;
+  --red-500:   #ef4444;
+  --red-600:   #dc2626;
+  --red-700:   #b91c1c;
+
+  --sky-50:    #f0f9ff;
+  --sky-200:   #bae6fd;
+  --sky-600:   #0284c7;
+  --sky-700:   #0369a1;
+
+  --teal-600:  #0d9488;
+  --pink-600:  #be185d;
+  --yt-red:    #ff0033;
+
+  /* ---------- 4. SEMÂNTICOS: SUPERFÍCIE ---------- */
+  --surface-canvas:   var(--neutral-50);     /* fundo da página */
+  --surface-raised:   var(--neutral-0);      /* cards, modais, header */
+  --surface-sunken:   var(--neutral-100);    /* áreas recuadas, chips */
+  --surface-hover:    var(--neutral-100);
+  --surface-inverse:  var(--neutral-900);    /* toasts, sidebar */
+  --surface-sidebar:  #151a2d;
+  --surface-overlay:  rgba(11, 14, 26, 0.48);
+
+  /* ---------- 4b. SUPERFÍCIE INVERSA (sidebar escura, log, toast) ---------- */
+  --white:            #ffffff;
+  --white-a05:        rgba(255, 255, 255, 0.05);  /* filetes sobre escuro */
+  --white-a06:        rgba(255, 255, 255, 0.06);  /* hover sobre escuro */
+  --white-a08:        rgba(255, 255, 255, 0.08);  /* fundo de contador */
+  --white-a16:        rgba(255, 255, 255, 0.16);  /* contador ativo */
+  --white-a60:        rgba(255, 255, 255, 0.60);  /* borda de modal */
+  --white-a78:        rgba(255, 255, 255, 0.78);  /* header em vidro */
+  --white-a92:        rgba(255, 255, 255, 0.92);  /* ícone sobre vídeo */
+  --on-dark-text:     #f1f3fa;   /* texto principal sobre escuro */
+  --on-dark-text-2:   #c3c9dc;   /* texto secundário sobre escuro */
+  --on-dark-muted:    #aab2c8;   /* itens de navegação */
+  --on-dark-subtle:   #8c95b0;   /* ícones/rodapé sobre escuro */
+  --on-dark-faint:    #6f7896;   /* rótulos de grupo */
+  --on-dark-line:     #242a40;   /* bordas do log */
+  --surface-log-head: #161b2e;
+  --on-dark-success:  #34d399;
+  --on-dark-danger:   #f87171;
+  --on-dark-warning:  #fbbf24;
+  --on-dark-info:     #7dd3fc;
+  --on-dark-running:  #a5b4fc;
+  --red-100:          #fee2e2;
+
+  /* ---------- 5. SEMÂNTICOS: BORDA ---------- */
+  --border-subtle:   var(--neutral-200);
+  --border-default:  var(--neutral-300);
+  --border-strong:   var(--neutral-400);
+  --border-brand:    var(--brand-300);
+
+  /* ---------- 6. SEMÂNTICOS: TEXTO ---------- */
+  --text-primary:   var(--neutral-900);
+  --text-secondary: var(--neutral-600);
+  --text-muted:     var(--neutral-500);
+  --text-subtle:    var(--neutral-400);
+  --text-on-brand:  #ffffff;
+  --text-on-inverse: #f1f3fa;
+
+  /* ---------- 7. SEMÂNTICOS: MARCA / AÇÃO ---------- */
+  --accent:          var(--brand-600);
+  --accent-hover:    var(--brand-700);
+  --accent-active:   var(--brand-800);
+  --accent-soft:     var(--brand-50);
+  --accent-soft-border: var(--brand-200);
+  --accent-text:     var(--brand-700);
+  --gradient-brand:  linear-gradient(135deg, #6d5ef5 0%, #9b3cf0 55%, #d946ef 100%);
+  --gradient-brand-soft: linear-gradient(135deg, rgba(109,94,245,.14) 0%, rgba(217,70,239,.10) 100%);
+  --gradient-sheen:  linear-gradient(120deg, rgba(255,255,255,0) 30%, rgba(255,255,255,.35) 50%, rgba(255,255,255,0) 70%);
+  --focus-ring:      0 0 0 3px rgba(109, 94, 245, 0.28);
+
+  /* ---------- 8. SEMÂNTICOS: ESTADO ---------- */
+  --success:       var(--green-600);
+  --success-soft:  var(--green-50);
+  --success-border: var(--green-200);
+  --warning:       var(--amber-700);
+  --warning-soft:  var(--amber-50);
+  --warning-border: var(--amber-200);
+  --danger:        var(--red-600);
+  --danger-soft:   var(--red-50);
+  --danger-border: var(--red-200);
+  --info:          var(--sky-700);
+  --info-soft:     var(--sky-50);
+  --info-border:   var(--sky-200);
+
+  /* ---------- 9. STATUS DE PRODUÇÃO (selos/pontos) ---------- */
+  --status-editing:   var(--amber-500);
+  --status-ready:     var(--green-600);
+  --status-posted:    var(--brand-500);
+  --status-posted-pt: var(--sky-600);
+  --status-posted-es: #7c3aed;
+  --status-posted-en: var(--teal-600);
+  --status-posted-all: var(--pink-600);
+
+  /* ---------- 10. TIPOGRAFIA ---------- */
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Roboto Mono', ui-monospace, Menlo, Consolas, monospace;
+
+  --text-2xs: 0.6875rem;  /* 11px — eyebrows, selos */
+  --text-xs:  0.75rem;    /* 12px */
+  --text-sm:  0.8125rem;  /* 13px */
+  --text-base:0.875rem;   /* 14px — corpo padrão do painel */
+  --text-md:  0.9375rem;  /* 15px */
+  --text-lg:  1.0625rem;  /* 17px */
+  --text-xl:  1.25rem;    /* 20px — títulos de card */
+  --text-2xl: 1.5rem;     /* 24px — títulos de página */
+  --text-3xl: 1.875rem;   /* 30px — KPIs */
+
+  --weight-regular: 400;
+  --weight-medium:  500;
+  --weight-semibold:600;
+  --weight-bold:    700;
+  --weight-extrabold: 800;
+
+  --leading-tight:  1.2;
+  --leading-snug:   1.4;
+  --leading-normal: 1.55;
+
+  --tracking-tight: -0.02em;
+  --tracking-wide:   0.08em;
+  --tracking-eyebrow: 0.12em;
+
+  /* ---------- 11. ESPAÇAMENTO (base 4px) ---------- */
+  --space-0: 0;
+  --space-1: 0.25rem;   /* 4 */
+  --space-2: 0.5rem;    /* 8 */
+  --space-3: 0.75rem;   /* 12 */
+  --space-4: 1rem;      /* 16 */
+  --space-5: 1.25rem;   /* 20 */
+  --space-6: 1.5rem;    /* 24 */
+  --space-8: 2rem;      /* 32 */
+  --space-10: 2.5rem;   /* 40 */
+  --space-12: 3rem;     /* 48 */
+
+  /* ---------- 12. RAIO ---------- */
+  --radius-xs:   6px;
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   16px;
+  --radius-xl:   20px;
+  --radius-pill: 999px;
+
+  /* ---------- 13. ELEVAÇÃO (sombras com tom índigo) ---------- */
+  --shadow-xs: 0 1px 2px rgba(18, 23, 41, 0.05);
+  --shadow-sm: 0 1px 2px rgba(18, 23, 41, 0.04), 0 2px 6px rgba(18, 23, 41, 0.04);
+  --shadow-md: 0 4px 14px -4px rgba(18, 23, 41, 0.10), 0 2px 4px rgba(18, 23, 41, 0.04);
+  --shadow-lg: 0 24px 48px -16px rgba(18, 23, 41, 0.28), 0 8px 16px -8px rgba(18, 23, 41, 0.10);
+  --shadow-glow: 0 8px 24px -8px rgba(109, 94, 245, 0.55);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+
+  /* ---------- 14. MOVIMENTO ---------- */
+  --ease-out:    cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --dur-fast: 140ms;
+  --dur-base: 220ms;
+  --dur-slow: 380ms;
+
+  /* ---------- 15. CAMADAS (z-index) ---------- */
+  --z-header:   100;
+  --z-dropdown: 1050;
+  --z-modal:    1000;
+  --z-dialog:   1100;
+  --z-toast:    1200;
+
+  /* ---------- 16. LAYOUT ---------- */
+  --sidebar-width: 248px;
+  --header-height: 60px;
+  --content-max: 1360px;
+
+  /* ==========================================================================
+     COMPATIBILIDADE (LEGADO) — aliases de nomes antigos.
+     Não usar em código novo. Serão removidos quando o HTML inline for migrado.
+     ========================================================================== */
+  --color-void-canvas: var(--surface-canvas);
+  --color-obsidian-surface: var(--surface-raised);
+  --color-slate-layer: var(--surface-raised);
+  --color-carbon-border: var(--border-subtle);
+  --color-border-input: var(--border-default);
+  --color-border-input-focus: var(--brand-500);
+  --color-ash-text: var(--text-subtle);
+  --color-fog-text: var(--text-muted);
+  --color-mist-text: var(--text-secondary);
+  --color-lunar-white: var(--neutral-800);
+  --color-frost-white: var(--text-primary);
+  --color-pure-white: #ffffff;
+  --color-ultraviolet-key: var(--accent);
+  --color-deep-iris: var(--accent-hover);
+  --color-amethyst-glow: var(--brand-500);
+  --color-shadow-iris: rgba(91, 71, 232, 0.10);
+  --color-plum-depth: var(--surface-sunken);
+  --color-code-rose: var(--red-500);
+  --color-emerald-ok: var(--success);
+  --color-amber-warn: var(--warning);
+  --bg-deep: var(--surface-canvas);
+  --glass-base: var(--surface-raised);
+  --glass-elevated: var(--surface-raised);
+  --glass-input: var(--surface-raised);
+  --glass-border: var(--border-subtle);
+  --glass-border-light: var(--accent-soft-border);
+  --glass-border-hover: var(--accent);
+  --accent-purple: var(--accent);
+  --accent-violet: var(--accent-hover);
+  --accent-neon: var(--accent);
+  --accent-pink: var(--red-500);
+  --accent-cyan: var(--sky-600);
+  --accent-success: var(--success);
+  --accent-warning: var(--warning);
+  --accent-danger: var(--danger);
+  --text-main: var(--text-primary);
+  --text-dim: var(--text-subtle);
+  --font-main: var(--font-sans);
+  --font-roobert: var(--font-sans);
+  --font-inter: var(--font-sans);
+  --radius-nav: var(--radius-md);
+  --radius-cards: var(--radius-lg);
+  --radius-inputs: var(--radius-md);
+  --shadow-card: var(--shadow-sm);
+  --shadow-card-hover: var(--shadow-md);
+  --shadow-nav: var(--shadow-xs);
+  --shadow-btn: var(--shadow-xs);
+  --shadow-dropdown: var(--shadow-lg);
+}
+
+/* ==========================================================================
+   PREFERÊNCIAS DO SISTEMA
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 1ms;
+    --dur-base: 1ms;
+    --dur-slow: 1ms;
+  }
+}

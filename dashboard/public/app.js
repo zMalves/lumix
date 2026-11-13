@@ -74,20 +74,110 @@ const vmakeLogContainer = document.getElementById('vmake-log-container');
 const vmakeLogOutput = document.getElementById('vmake-log-output');
 const vmakeJobStatus = document.getElementById('vmake-job-status');
 
-// Toast
-const toastEl = document.getElementById('toast');
-let toastTimer = null;
+// --------------------------------------------------------------------------
+// TOASTS — pilha no canto inferior direito (ver docs/DESIGN.md, seção Feedback)
+// Uso: showToast(msg) | showToast(msg, 6000) | showToast(msg, 'success') | showToast(msg, 6000, 'error')
+// Tipos: success | error | warning | info (se omitido, é inferido pela mensagem)
+// --------------------------------------------------------------------------
+const toastStack = document.getElementById('toast-stack');
+const TOAST_MAX_VISIBLE = 4;
+const TOAST_ICONS = { success: '✓', error: '!', warning: '!', info: 'i' };
 
-function showToast(message, duration = 3500) {
-  if (!toastEl) return;
-  toastEl.textContent = message;
-  toastEl.classList.remove('hidden');
+function inferToastType(message) {
+  if (/erro|falh|não foi|nenhum|⚠|❌/i.test(message)) return 'error';
+  if (/atenção|cuidado|postado é automático|aviso/i.test(message)) return 'warning';
+  if (/sucesso|conclu|marcado|conectad|salv|copiad|atualizad|✅|🎉/i.test(message)) return 'success';
+  return 'info';
+}
 
-  if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    toastEl.classList.add('hidden');
-    toastTimer = null;
-  }, duration);
+function showToast(message, durationOrType = 3500, maybeType) {
+  if (!toastStack) return null;
+  const raw = String(message ?? '');
+  let duration = 3500;
+  let type;
+  if (typeof durationOrType === 'string') {
+    type = durationOrType;
+  } else {
+    duration = Number(durationOrType) || 3500;
+    type = maybeType;
+  }
+  if (!TOAST_ICONS[type]) type = inferToastType(raw);
+
+  // Remove emojis/símbolos iniciais: o ícone do tipo já comunica o estado
+  const text = raw.replace(/^[\p{Extended_Pictographic}️‍\s]+/u, '').trim() || raw;
+
+  const item = document.createElement('div');
+  item.className = `toast-item ${type}`;
+  item.setAttribute('role', type === 'error' ? 'alert' : 'status');
+  item.style.setProperty('--toast-duration', `${duration}ms`);
+  item.innerHTML = `
+    <span class="toast-icon" aria-hidden="true">${TOAST_ICONS[type]}</span>
+    <span class="toast-message"></span>
+    <button type="button" class="toast-close" aria-label="Fechar notificação">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+    <span class="toast-progress"></span>`;
+  item.querySelector('.toast-message').textContent = text;
+
+  const progress = item.querySelector('.toast-progress');
+  let timer = null;
+  let remaining = duration;
+  let startedAt = 0;
+  let closing = false;
+
+  const dismiss = () => {
+    if (closing) return;
+    closing = true;
+    clearTimeout(timer);
+    item.classList.add('is-leaving');
+    setTimeout(() => item.remove(), 200);
+  };
+  const arm = () => {
+    startedAt = Date.now();
+    timer = setTimeout(dismiss, remaining);
+  };
+
+  // Pausa ao passar o mouse para dar tempo de ler
+  item.addEventListener('mouseenter', () => {
+    clearTimeout(timer);
+    remaining -= Date.now() - startedAt;
+    progress.style.animationPlayState = 'paused';
+  });
+  item.addEventListener('mouseleave', () => {
+    progress.style.animationPlayState = 'running';
+    arm();
+  });
+  item.querySelector('.toast-close').addEventListener('click', dismiss);
+
+  toastStack.appendChild(item);
+  while (toastStack.children.length > TOAST_MAX_VISIBLE) {
+    toastStack.firstElementChild.remove();
+  }
+  arm();
+  return item;
+}
+
+// --------------------------------------------------------------------------
+// CONTEXTO DO CABEÇALHO — mostra em qual seção o usuário está
+// --------------------------------------------------------------------------
+const PAGE_META = {
+  'tab-search':   ['Produção', 'Pesquisa'],
+  'tab-queue':    ['Produção', 'Fila'],
+  'tab-pipeline': ['Produção', 'Estúdio'],
+  'tab-projects': ['Produção', 'Projetos'],
+  'tab-youtube':  ['Publicação', 'YouTube'],
+  'tab-metrics':  ['Publicação', 'Métricas'],
+  'tab-settings': ['Sistema', 'Configurações'],
+};
+
+function syncHeaderPage(tabId) {
+  const meta = PAGE_META[tabId];
+  if (!meta) return;
+  const eyebrow = document.getElementById('header-page-eyebrow');
+  const title = document.getElementById('header-page-title');
+  if (eyebrow) eyebrow.textContent = meta[0];
+  if (title) title.textContent = meta[1];
+  document.title = `${meta[1]} · LUMIX Studio`;
 }
 
 // Configuração Global de Trilha Sonora / Música de Fundo
@@ -593,6 +683,7 @@ function setupTabs() {
       btn.classList.add('active');
       const targetEl = document.getElementById(targetTab);
       if (targetEl) targetEl.classList.add('active');
+      syncHeaderPage(targetTab);
 
       // Se navegou para configurações, recarrega valores
       if (targetTab === 'tab-settings') {
@@ -646,6 +737,7 @@ function switchTab(tabId) {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     const t = document.getElementById(tabId);
     if (t) t.classList.add('active');
+    syncHeaderPage(tabId);
   }
 }
 

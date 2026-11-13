@@ -7,31 +7,37 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=2.8.0">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%236d5ef5'/%3E%3Cstop offset='.55' stop-color='%239b3cf0'/%3E%3Cstop offset='1' stop-color='%23d946ef'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='9' fill='url(%23g)'/%3E%3Cpath d='M17.6 5.5 8.6 17.4h5.4l-1.6 9.1 9.3-12.1h-5.5z' fill='white'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="tokens.css?v=3.0.0">
+  <link rel="stylesheet" href="style.css?v=3.0.0">
 </head>
 <body>
-  <!-- Header Principal LUMIX -->
+  <!-- Símbolo da marca LUMIX (raio). Fonte única: usar <use href="#lumix-mark"/> em qualquer lugar. -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <symbol id="lumix-mark" viewBox="0 0 24 24">
+      <path d="M13.2 2 4.5 13.4h6.1L9.6 22l9.9-12.3h-6.2z" fill="currentColor" stroke="currentColor" stroke-width="0.6" stroke-linejoin="round"/>
+    </symbol>
+  </svg>
+
+  <!-- Header Principal LUMIX: marca • contexto da página • ações -->
   <header class="app-header">
-    <div class="logo-area" onclick="switchTab('tab-search')">
-      <div class="logo-symbol">
-        <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="lumixLogoGrad" x1="2" y1="4" x2="30" y2="28" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#4f46e5" />
-              <stop offset="100%" stop-color="#7c3aed" />
-            </linearGradient>
-          </defs>
-          <path d="M6 4h7l-5 11h9l-12 13 3-9H4L6 4z" fill="url(#lumixLogoGrad)"/>
-        </svg>
+    <div class="app-header-left">
+      <div class="logo-area" onclick="switchTab('tab-search')" title="Ir para Pesquisa">
+        <span class="brand-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#lumix-mark"/></svg></span>
+        <span class="logo-text-group">
+          <span class="logo-title">LUMIX</span>
+          <span class="logo-subtitle">STUDIO</span>
+        </span>
       </div>
-      <div class="logo-text-group">
-        <div class="logo-title">LUMIX</div>
-        <div class="logo-subtitle">STUDIO</div>
+      <span class="header-divider" aria-hidden="true"></span>
+      <div class="header-page" aria-live="polite">
+        <span class="header-page-eyebrow" id="header-page-eyebrow">Produção</span>
+        <span class="header-page-title" id="header-page-title">Pesquisa</span>
       </div>
     </div>
 
     <!-- Status e Ações Rápidas no Header -->
-    <div style="display:flex; align-items:center; gap:0.75rem;">
+    <div class="header-actions">
       <!-- Toggle Global de Música de Fundo -->
       <button type="button" id="header-music-toggle" class="header-music-btn active" title="Trilha sonora de fundo (Ogryzek) para novos vídeos (Clique para ativar/desativar por padrão)" onclick="toggleGlobalMusic()">
         <span class="music-icon">🎵</span>
@@ -49,11 +55,9 @@
   <div class="main-layout">
     <!-- Sidebar: Navegação Principal -->
     <aside class="sidebar">
-      <div class="sidebar-nav-header">
-        <span class="nav-section-title">Menu Principal</span>
-      </div>
-
-      <nav class="sidebar-nav-menu">
+      <nav class="sidebar-nav-menu" aria-label="Menu principal">
+        <div class="nav-group">
+        <div class="nav-group-label">Produção</div>
         <button class="nav-item-btn active" data-tab="tab-search" id="menu-btn-search">
           <span class="nav-item-icon">
             <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -77,6 +81,9 @@
           <span class="badge-count" id="projects-count" style="margin-left: auto;">0</span>
         </button>
 
+        </div>
+        <div class="nav-group">
+        <div class="nav-group-label">Publicação</div>
         <button class="nav-item-btn" data-tab="tab-youtube" id="menu-btn-youtube">
           <span class="nav-item-icon" style="color: #ff3333;">
             <svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px;"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
@@ -92,13 +99,21 @@
           <span class="nav-item-text">Métricas</span>
         </button>
 
+        </div>
+        <div class="nav-group">
+        <div class="nav-group-label">Sistema</div>
         <button class="nav-item-btn" data-tab="tab-settings" id="menu-btn-settings">
           <span class="nav-item-icon">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </span>
           <span class="nav-item-text">Configurações</span>
         </button>
+        </div>
       </nav>
+
+      <div class="sidebar-footer" id="sidebar-footer">
+        <span id="sidebar-footer-text">LUMIX Studio · pipeline local</span>
+      </div>
     </aside>
 
     <!-- Conteúdo Principal em Coluna Única -->
@@ -1248,12 +1263,7 @@
     <div class="modal-card">
       <div class="modal-header">
         <div style="display:flex;align-items:center;gap:0.85rem;">
-          <div class="logo-symbol" style="width:36px;height:36px;">
-            <svg viewBox="0 0 100 80" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;">
-              <path d="M42 6 L84 6 L48 42 L6 42 Z" fill="white"/>
-              <path d="M22 48 L86 48 L70 78 L56 62 L4 62 Z" fill="white"/>
-            </svg>
-          </div>
+          <span class="brand-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#lumix-mark"/></svg></span>
           <div>
             <h3 style="margin:0;font-size:1.15rem;font-weight:800;letter-spacing:0.04em;">LUMIX Auto-Pilot Engine</h3>
             <p id="autopilot-target-name" style="margin:0;font-size:0.78rem;color:var(--text-muted);"></p>
@@ -1293,12 +1303,7 @@
     <div class="modal-card" style="max-width: 580px; width: 92%;">
       <div class="modal-header">
         <div style="display:flex;align-items:center;gap:0.75rem;">
-          <div class="logo-symbol" style="width:28px;height:24px;">
-            <svg viewBox="0 0 100 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M42 6 L84 6 L48 42 L6 42 Z" fill="white"/>
-              <path d="M22 48 L86 48 L70 78 L56 62 L4 62 Z" fill="white"/>
-            </svg>
-          </div>
+          <span class="brand-mark sm"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#lumix-mark"/></svg></span>
           <div>
             <h3 style="margin:0;font-size:1.15rem;font-weight:800;letter-spacing:0.04em;">Configurações & Chaves de API</h3>
             <p style="margin:0;font-size:0.78rem;color:var(--text-muted);">Gerencie suas chaves sem precisar abrir o terminal ou arquivos</p>
@@ -1619,14 +1624,14 @@
         <div id="dialog-icon-wrapper" class="dialog-icon-wrapper danger">
           <span id="dialog-icon">⚠️</span>
         </div>
-        <div style="display: flex; flex-direction: column; gap: 0.35rem; width: 100%;">
-          <h3 id="dialog-title" style="margin: 0; font-size: 1.18rem; font-weight: 800; color: var(--color-frost-white);">Confirmação</h3>
-          <p id="dialog-message" style="margin: 0; font-size: 0.88rem; line-height: 1.5; color: var(--color-mist-text); word-break: break-word;">Mensagem</p>
+        <div class="dialog-text">
+          <h3 id="dialog-title">Confirmação</h3>
+          <p id="dialog-message">Mensagem</p>
         </div>
       </div>
       <div class="dialog-footer">
-        <button type="button" class="btn-secondary" id="dialog-btn-cancel" style="flex: 1; justify-content: center; font-weight: 600;">Cancelar</button>
-        <button type="button" class="btn-primary" id="dialog-btn-confirm" style="flex: 1; justify-content: center; font-weight: 700;">Confirmar</button>
+        <button type="button" class="btn-secondary" id="dialog-btn-cancel">Cancelar</button>
+        <button type="button" class="btn-primary" id="dialog-btn-confirm">Confirmar</button>
       </div>
     </div>
   </div>
@@ -1638,24 +1643,22 @@
         <div class="dialog-icon-wrapper info">
           <span>🔗</span>
         </div>
-        <div style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%;">
-          <h3 id="prompt-dialog-title" style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--color-frost-white);">Copiar Link</h3>
-          <p id="prompt-dialog-message" style="margin: 0; font-size: 0.85rem; color: var(--color-mist-text);">Copie o link direto abaixo:</p>
-          <div style="margin-top: 0.5rem;">
-            <input type="text" id="prompt-dialog-input" readonly style="width: 100%; font-family: var(--font-mono); font-size: 0.82rem; background: #f8fafc; cursor: text;" onclick="this.select()">
-          </div>
+        <div class="dialog-text">
+          <h3 id="prompt-dialog-title">Copiar Link</h3>
+          <p id="prompt-dialog-message">Copie o link direto abaixo:</p>
+          <input type="text" id="prompt-dialog-input" class="dialog-copy-input" readonly onclick="this.select()">
         </div>
       </div>
-      <div class="dialog-footer" style="justify-content: flex-end;">
+      <div class="dialog-footer">
         <button type="button" class="btn-secondary" id="prompt-btn-close">Fechar</button>
-        <button type="button" class="btn-primary" id="prompt-btn-copy" style="font-weight: 700;">📋 Copiar Link</button>
+        <button type="button" class="btn-primary" id="prompt-btn-copy">Copiar link</button>
       </div>
     </div>
   </div>
 
   <!-- Toast de Notificações -->
-  <div id="toast" class="toast hidden"></div>
+  <div id="toast-stack" class="toast-stack" role="status" aria-live="polite"></div>
 
-  <script src="app.js?v=2.8.0"></script>
+  <script src="app.js?v=3.0.0"></script>
 </body>
 </html>
