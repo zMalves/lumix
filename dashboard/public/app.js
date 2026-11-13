@@ -2608,7 +2608,24 @@ async function renderProjectsGallery() {
   const totalBadge = document.getElementById('projects-total-badge');
   if (!grid) return;
 
-  grid.innerHTML = '<div style="grid-column: 1/-1; padding: 2rem; text-align: center; color: var(--text-muted);"><div class="spinner"></div> Carregando projetos do disco...</div>';
+  // Animação de carregamento: barra com anel girando + linhas "fantasma" que brilham (7 colunas)
+  const skeletonRow = `
+    <tr class="skeleton-row">
+      <td><div class="skeleton" style="width:42px; height:56px;"></div></td>
+      <td><div class="skeleton" style="width:70%; height:12px;"></div><div class="skeleton" style="width:40%; height:10px; margin-top:8px;"></div></td>
+      <td><div class="skeleton" style="width:60%; height:12px;"></div></td>
+      <td><div class="skeleton" style="width:80%; height:12px;"></div></td>
+      <td><div class="skeleton" style="width:90px; height:20px; border-radius:999px;"></div></td>
+      <td><div class="skeleton" style="width:60%; height:12px;"></div></td>
+      <td><div class="skeleton" style="width:50%; height:12px;"></div></td>
+    </tr>`;
+  grid.innerHTML = `
+    <tr>
+      <td colspan="7" style="padding:0; border-bottom:none;">
+        <div class="loading-status"><span class="loader-ring"></span><span>Carregando projetos do disco...</span></div>
+      </td>
+    </tr>
+    ${skeletonRow.repeat(4)}`;
 
   try {
     const res = await fetch('/api/projects');
