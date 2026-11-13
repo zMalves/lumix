@@ -171,6 +171,7 @@ function getProjectDetails(folderName) {
   if (info.status === 'posted_pt') postedLangs.add('pt');
   if (info.status === 'posted_es') postedLangs.add('es');
   if (info.status === 'posted_en') postedLangs.add('en');
+  if (info.status === 'posted_all') { postedLangs.add('pt'); postedLangs.add('es'); postedLangs.add('en'); }
   if (info.status === 'posted_both') { postedLangs.add('pt'); postedLangs.add('es'); }
   if (info.status === 'posted' && postedLangs.size === 0) postedLangs.add('pt');
 
@@ -250,7 +251,8 @@ function getProjectDetails(folderName) {
   const isPostedBoth = isPostedPT && isPostedES;
 
   let computedStatus = info.status;
-  if (!computedStatus || computedStatus === 'ready' || computedStatus === 'in_progress') {
+  // Só calcula automaticamente quando não há status salvo; o status escolhido no painel tem prioridade
+  if (!computedStatus) {
     if (isPostedBoth) computedStatus = 'posted_both';
     else if (isPostedES) computedStatus = 'posted_es';
     else if (isPostedPT) computedStatus = 'posted_pt';
@@ -969,6 +971,11 @@ const server = http.createServer(async (req, res) => {
         }
         if (info.status === 'posted_en' && !info.youtubeUploads.en) {
           info.youtubeUploads.en = { manual: true, publishedAt: new Date().toISOString() };
+        }
+        if (info.status === 'posted_all') {
+          if (!info.youtubeUploads.pt) info.youtubeUploads.pt = info.youtube || { manual: true, publishedAt: new Date().toISOString() };
+          if (!info.youtubeUploads.es) info.youtubeUploads.es = { manual: true, publishedAt: new Date().toISOString() };
+          if (!info.youtubeUploads.en) info.youtubeUploads.en = { manual: true, publishedAt: new Date().toISOString() };
         }
         if (info.status === 'posted_both') {
           if (!info.youtubeUploads.pt) info.youtubeUploads.pt = info.youtube || { manual: true, publishedAt: new Date().toISOString() };

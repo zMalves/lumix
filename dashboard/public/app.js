@@ -2614,7 +2614,7 @@ function filterAndDisplayProjects() {
     const projStatus = p.status || (p.info && p.info.status) || (p.hasVertical9x16 || p.hasSquareSubtitled ? 'ready' : (p.hasFinal ? 'in_progress' : 'in_progress'));
 
     const postedLangs = p.postedLanguages || [];
-    const isPostedAny = projStatus === 'posted' || projStatus === 'posted_pt' || projStatus === 'posted_es' || projStatus === 'posted_en' || projStatus === 'posted_both' || postedLangs.length > 0 || (p.info && (p.info.status === 'posted' || p.info.youtube || p.info.youtubeUploads));
+    const isPostedAny = projStatus === 'posted' || projStatus === 'posted_pt' || projStatus === 'posted_es' || projStatus === 'posted_en' || projStatus === 'posted_both' || projStatus === 'posted_all' || postedLangs.length > 0 || (p.info && (p.info.status === 'posted' || p.info.youtube || p.info.youtubeUploads));
     const isPT = postedLangs.includes('pt') || projStatus === 'posted_pt' || projStatus === 'posted_both' || (isPostedAny && (!p.info?.youtubeUploads || p.info?.youtubeUploads?.pt || (p.info?.youtube && !p.info?.youtubeUploads?.es)));
     const isES = postedLangs.includes('es') || projStatus === 'posted_es' || projStatus === 'posted_both' || !!(p.info?.youtubeUploads && p.info?.youtubeUploads?.es);
     const isBoth = isPT && isES;
@@ -2625,6 +2625,8 @@ function filterAndDisplayProjects() {
       return isPT;
     } else if (currentProjectFilter === 'posted_es') {
       return isES;
+    } else if (currentProjectFilter === 'posted_all') {
+      return projStatus === 'posted_all' || (postedLangs.includes('pt') && postedLangs.includes('es') && postedLangs.includes('en'));
     } else if (currentProjectFilter === 'posted_en') {
       return postedLangs.includes('en') || projStatus === 'posted_en';
     } else if (currentProjectFilter === 'posted_both') {
@@ -2689,7 +2691,17 @@ function filterAndDisplayProjects() {
     let currentStatusLabel = 'Em Edição';
     let currentStatusDot = 'in_progress';
 
-    if (isPostedBoth || projStatus === 'posted_both') {
+    // Status escolhido manualmente no painel tem prioridade sobre o que foi detectado pelos uploads
+    const EXPLICIT_LABELS = {
+      in_progress: 'Em Edição', ready: 'Pronto (9:16)',
+      posted_pt: 'Postado (PT)', posted_es: 'Postado (ESP)', posted_en: 'Postado (ENG)',
+      posted_both: 'Postado nos 2', posted_all: 'Postado nos 3'
+    };
+    if (EXPLICIT_LABELS[projStatus]) {
+      currentStatusVal = projStatus;
+      currentStatusLabel = EXPLICIT_LABELS[projStatus];
+      currentStatusDot = projStatus;
+    } else if (isPostedBoth || projStatus === 'posted_both') {
       currentStatusVal = 'posted_both';
       currentStatusLabel = 'Postado nos 2';
       currentStatusDot = 'posted_both';
@@ -2814,6 +2826,10 @@ function filterAndDisplayProjects() {
               <div class="status-option ${currentStatusVal === 'posted_en' ? 'active' : ''}" onclick="selectProjectStatusOption('${p.name}', 'posted_en')">
                 <span class="status-dot-indicator posted_en"></span>
                 <span>Postado (ENG)</span>
+              </div>
+              <div class="status-option ${currentStatusVal === 'posted_all' ? 'active' : ''}" onclick="selectProjectStatusOption('${p.name}', 'posted_all')">
+                <span class="status-dot-indicator posted_all"></span>
+                <span>Postado nos 3</span>
               </div>
               <div class="status-option ${currentStatusVal === 'posted_both' ? 'active' : ''}" onclick="selectProjectStatusOption('${p.name}', 'posted_both')">
                 <span class="status-dot-indicator posted_both"></span>

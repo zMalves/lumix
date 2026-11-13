@@ -1600,6 +1600,11 @@ textarea.code-textarea {
   box-shadow: 0 0 6px rgba(13, 148, 136, 0.4);
 }
 
+.status-dot-indicator.posted_all {
+  background: #be185d;
+  box-shadow: 0 0 6px rgba(190, 24, 93, 0.4);
+}
+
 .status-dot-indicator.posted_both {
   background: #059669;
   box-shadow: 0 0 6px rgba(5, 150, 105, 0.4);
