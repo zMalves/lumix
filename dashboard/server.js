@@ -174,6 +174,11 @@ function getProjectDetails(folderName) {
   if (info.status === 'posted_all') { postedLangs.add('pt'); postedLangs.add('es'); postedLangs.add('en'); }
   if (info.status === 'posted_both') { postedLangs.add('pt'); postedLangs.add('es'); }
   if (info.status === 'posted' && postedLangs.size === 0) postedLangs.add('pt');
+  // Marcação manual por idioma (clique no selo na coluna Idiomas) tem prioridade sobre o histórico de uploads
+  if (Array.isArray(info.postedLangs)) {
+    postedLangs.clear();
+    info.postedLangs.forEach(l => postedLangs.add(String(l).toLowerCase()));
+  }
 
   const langMetaMap = {
     pt: { name: 'Português', flag: '🇧🇷' },
@@ -250,14 +255,13 @@ function getProjectDetails(folderName) {
   const isPostedES = postedLangs.has('es');
   const isPostedBoth = isPostedPT && isPostedES;
 
+  // Status: "posted" sempre que houver algum idioma postado; senão, Em Edição/Pronto
+  // (escolha manual) ou o cálculo pelos arquivos quando não há escolha salva.
   let computedStatus = info.status;
-  // Só calcula automaticamente quando não há status salvo; o status escolhido no painel tem prioridade
-  if (!computedStatus) {
-    if (isPostedBoth) computedStatus = 'posted_both';
-    else if (isPostedES) computedStatus = 'posted_es';
-    else if (isPostedPT) computedStatus = 'posted_pt';
-    else if (postedLangs.has('en')) computedStatus = 'posted_en';
-    else computedStatus = (fs.existsSync(vertical9x16Video) ? 'ready' : (fs.existsSync(finalVideo) ? 'assembled' : 'in_progress'));
+  if (postedLangs.size > 0) {
+    computedStatus = 'posted';
+  } else if (computedStatus !== 'in_progress' && computedStatus !== 'ready') {
+    computedStatus = (fs.existsSync(vertical9x16Video) ? 'ready' : (fs.existsSync(finalVideo) ? 'assembled' : 'in_progress'));
   }
 
   // Identifica o vídeo final que foi gerado (prioriza 9:16 vertical, depois 1x1 ou final mesclado)
@@ -800,6 +804,7 @@ const server = http.createServer(async (req, res) => {
               scheduledFor: publishAt || null
             };
             info.youtube = info.youtubeUploads[lang];
+            if (Array.isArray(info.postedLangs) && !info.postedLangs.includes(lang)) info.postedLangs.push(lang);
             const hasPt = !!(info.youtubeUploads.pt?.url || info.youtubeUploads.pt?.videoId || info.youtubeUploads.pt?.manual);
             const hasEs = !!(info.youtubeUploads.es?.url || info.youtubeUploads.es?.videoId || info.youtubeUploads.es?.manual);
             if (hasPt && hasEs) info.status = 'posted_both';
@@ -940,6 +945,27 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ----------------------------------------------------
+    // API: Marcar/desmarcar um idioma como postado (clique no selo da coluna Idiomas)
+    // ----------------------------------------------------
+    if (pathname === '/api/projects/toggle-language' && req.method === 'POST') {
+      const { project, lang, posted } = await parseBody(req);
+      if (!project || !lang) return sendJson(res, 400, { error: 'Projeto e idioma são necessários' });
+      const folderPath = path.join(VIDEOS_DIR, project);
+      const infoFile = path.join(folderPath, 'info.json');
+      if (!fs.existsSync(infoFile)) return sendJson(res, 404, { error: 'Projeto não encontrado' });
+
+      const current = new Set(getProjectDetails(project).postedLanguages || []);
+      const l = String(lang).toLowerCase();
+      const target = typeof posted === 'boolean' ? posted : !current.has(l);
+      if (target) current.add(l); else current.delete(l);
+
+      const info = JSON.parse(fs.readFileSync(infoFile, 'utf-8'));
+      info.postedLangs = Array.from(current);
+      fs.writeFileSync(infoFile, JSON.stringify(info, null, 2), 'utf-8');
+      return sendJson(res, 200, { success: true, project: getProjectDetails(project) });
+    }
+
+    // ----------------------------------------------------
     // API: Atualizar Metadados do Projeto (Renomear e Data de Postagem)
     // ----------------------------------------------------
     if (pathname === '/api/projects/update-meta' && req.method === 'POST') {
@@ -960,27 +986,9 @@ const server = http.createServer(async (req, res) => {
       if (typeof scheduledDate !== 'undefined') {
         info.scheduledDate = scheduledDate ? scheduledDate.trim() : null;
       }
-      if (typeof status === 'string' && status.trim()) {
+      // Só "Em Edição" e "Pronto" são escolhidos manualmente. "Postado" é automático (ver toggle por idioma).
+      if (typeof status === 'string' && (status.trim() === 'in_progress' || status.trim() === 'ready')) {
         info.status = status.trim();
-        if (!info.youtubeUploads) info.youtubeUploads = {};
-        if (info.status === 'posted_pt' && !info.youtubeUploads.pt) {
-          info.youtubeUploads.pt = info.youtube || { manual: true, publishedAt: new Date().toISOString() };
-        }
-        if (info.status === 'posted_es' && !info.youtubeUploads.es) {
-          info.youtubeUploads.es = { manual: true, publishedAt: new Date().toISOString() };
-        }
-        if (info.status === 'posted_en' && !info.youtubeUploads.en) {
-          info.youtubeUploads.en = { manual: true, publishedAt: new Date().toISOString() };
-        }
-        if (info.status === 'posted_all') {
-          if (!info.youtubeUploads.pt) info.youtubeUploads.pt = info.youtube || { manual: true, publishedAt: new Date().toISOString() };
-          if (!info.youtubeUploads.es) info.youtubeUploads.es = { manual: true, publishedAt: new Date().toISOString() };
-          if (!info.youtubeUploads.en) info.youtubeUploads.en = { manual: true, publishedAt: new Date().toISOString() };
-        }
-        if (info.status === 'posted_both') {
-          if (!info.youtubeUploads.pt) info.youtubeUploads.pt = info.youtube || { manual: true, publishedAt: new Date().toISOString() };
-          if (!info.youtubeUploads.es) info.youtubeUploads.es = { manual: true, publishedAt: new Date().toISOString() };
-        }
       }
 
       fs.writeFileSync(infoFile, JSON.stringify(info, null, 2), 'utf-8');

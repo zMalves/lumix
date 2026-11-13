@@ -437,11 +437,7 @@
                   <select class="evervault-select-status" id="select-studio-status">
                     <option value="in_progress">Em Edição</option>
                     <option value="ready">Pronto (9:16)</option>
-                    <option value="posted_pt">Postado (PT)</option>
-                    <option value="posted_es">Postado (ESP)</option>
-                    <option value="posted_en">Postado (ENG)</option>
-                    <option value="posted_all">Postado nos 3</option>
-                    <option value="posted_both">Postado nos 2</option>
+                    <option value="posted" disabled>Postado (automático)</option>
                   </select>
                 </div>
                 <span id="project-scheduled-badge" style="display:none; font-size: 0.72rem; background: rgba(184, 140, 255, 0.1); color: var(--color-ultraviolet-key); border: 1px solid rgba(184, 140, 255, 0.3); padding: 2px 10px; border-radius: var(--radius-pill); font-weight: 500;">Post agendado</span>
@@ -955,21 +951,6 @@
               <button class="filter-proj-btn" data-filter="posted" style="color: var(--color-ultraviolet-key); display:inline-flex; align-items:center; gap:0.35rem;">
                 <svg style="width:13px;height:13px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
                 Todos Postados
-              </button>
-              <button class="filter-proj-btn" data-filter="posted_pt" style="color: #0284c7; display:inline-flex; align-items:center; gap:0.35rem;">
-                Postado PT
-              </button>
-              <button class="filter-proj-btn" data-filter="posted_es" style="color: #7c3aed; display:inline-flex; align-items:center; gap:0.35rem;">
-                Postado ESP
-              </button>
-              <button class="filter-proj-btn" data-filter="posted_en" style="color: #0d9488; display:inline-flex; align-items:center; gap:0.35rem;">
-                Postado ENG
-              </button>
-              <button class="filter-proj-btn" data-filter="posted_all" style="color: #be185d; display:inline-flex; align-items:center; gap:0.35rem;">
-                Postado nos 3
-              </button>
-              <button class="filter-proj-btn" data-filter="posted_both" style="color: #059669; display:inline-flex; align-items:center; gap:0.35rem;">
-                Postado nos 2
               </button>
             </div>
           </div>

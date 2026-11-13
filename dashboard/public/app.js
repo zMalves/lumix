@@ -922,9 +922,36 @@ window.toggleStatusDropdown = function(projectName, triggerBtn, event) {
   }
 };
 
+// Marca/desmarca um idioma como postado (clique no selo da coluna Idiomas)
+window.toggleLanguagePosted = async function(projectName, lang) {
+  try {
+    const res = await fetch('/api/projects/toggle-language', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project: projectName, lang })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Falha ao atualizar o idioma');
+    const idx = allLoadedProjects.findIndex(item => item.name === projectName);
+    if (idx !== -1) allLoadedProjects[idx] = data.project;
+    const nowPosted = (data.project.postedLanguages || []).includes(lang);
+    showToast(nowPosted ? `✅ ${lang.toUpperCase()} marcado como postado` : `↩️ ${lang.toUpperCase()} desmarcado`);
+    filterAndDisplayProjects();
+    if (currentProject && currentProject.name === projectName) {
+      selectProject(projectName);
+    }
+  } catch (err) {
+    showToast(`⚠️ ${err.message}`);
+  }
+};
+
 window.selectProjectStatusOption = async function(projectName, newStatus) {
   document.querySelectorAll('.status-dropdown-menu').forEach(m => m.classList.add('hidden'));
   document.querySelectorAll('.custom-status-dropdown').forEach(d => d.classList.remove('open'));
+  if (newStatus === 'posted') {
+    showToast('Postado é automático: clique no idioma (PT, ESP, ENG) na coluna Idiomas para marcar.');
+    return;
+  }
   await window.changeProjectStatus(projectName, newStatus);
 };
 
@@ -1112,14 +1139,12 @@ async function selectProject(name) {
     const studioStatusDot = document.getElementById('studio-status-dot');
     if (studioStatusBox && selectStudioStatus) {
       studioStatusBox.style.display = 'inline-flex';
+      // "Postado" é automático: vale quando algum idioma está marcado na coluna Idiomas
       const postedLangs = project.postedLanguages || [];
-      const isPT = postedLangs.includes('pt') || !!(project.info?.youtubeUploads?.pt) || (project.status === 'posted' && !postedLangs.includes('es')) || !!(project.info?.youtube && !project.info?.youtubeUploads?.es);
-      const isES = postedLangs.includes('es') || !!(project.info?.youtubeUploads?.es);
-      let curStatus = project.status || (project.info && project.info.status);
-      if (isPT && isES) curStatus = 'posted_both';
-      else if (isES) curStatus = 'posted_es';
-      else if (isPT && (curStatus === 'posted' || curStatus === 'posted_pt')) curStatus = 'posted_pt';
-      else if (!curStatus) curStatus = (project.hasVertical9x16 || project.hasSquareSubtitled ? 'ready' : 'in_progress');
+      let curStatus;
+      if (postedLangs.length > 0) curStatus = 'posted';
+      else if (project.status === 'ready' || (project.info && project.info.status === 'ready')) curStatus = 'ready';
+      else curStatus = 'in_progress';
 
       selectStudioStatus.value = curStatus;
       if (studioStatusDot) {
@@ -2614,7 +2639,7 @@ function filterAndDisplayProjects() {
     const projStatus = p.status || (p.info && p.info.status) || (p.hasVertical9x16 || p.hasSquareSubtitled ? 'ready' : (p.hasFinal ? 'in_progress' : 'in_progress'));
 
     const postedLangs = p.postedLanguages || [];
-    const isPostedAny = projStatus === 'posted' || projStatus === 'posted_pt' || projStatus === 'posted_es' || projStatus === 'posted_en' || projStatus === 'posted_both' || projStatus === 'posted_all' || postedLangs.length > 0 || (p.info && (p.info.status === 'posted' || p.info.youtube || p.info.youtubeUploads));
+    const isPostedAny = projStatus === 'posted' || postedLangs.length > 0;
     const isPT = postedLangs.includes('pt') || projStatus === 'posted_pt' || projStatus === 'posted_both' || (isPostedAny && (!p.info?.youtubeUploads || p.info?.youtubeUploads?.pt || (p.info?.youtube && !p.info?.youtubeUploads?.es)));
     const isES = postedLangs.includes('es') || projStatus === 'posted_es' || projStatus === 'posted_both' || !!(p.info?.youtubeUploads && p.info?.youtubeUploads?.es);
     const isBoth = isPT && isES;
@@ -2680,55 +2705,29 @@ function filterAndDisplayProjects() {
       ? p.availableLanguages
       : ['pt'];
 
+    // Idiomas marcados como postados (clique no selo na coluna Idiomas)
     const postedLangs = p.postedLanguages || [];
-    const isPostedPT = postedLangs.includes('pt') || projStatus === 'posted_pt' || projStatus === 'posted_both' || (p.status === 'posted' && !postedLangs.includes('es')) || !!(p.info?.youtube && !p.info?.youtubeUploads?.es) || !!(p.info?.youtubeUploads?.pt);
-    const isPostedES = postedLangs.includes('es') || projStatus === 'posted_es' || projStatus === 'posted_both' || !!(p.info?.youtubeUploads && p.info?.youtubeUploads?.es);
-    const isPostedBoth = (isPostedPT && isPostedES) || projStatus === 'posted_both';
+    const anyPosted = postedLangs.length > 0 || projStatus === 'posted';
 
-    // Computa Status para Custom Dropdown
-    const isPostedEN = postedLangs.includes('en') || projStatus === 'posted_en';
+    // Status: "Postado" é automático (qualquer idioma marcado).
+    // Sem idioma marcado, vale a escolha manual: Em Edição ou Pronto.
     let currentStatusVal = 'in_progress';
     let currentStatusLabel = 'Em Edição';
-    let currentStatusDot = 'in_progress';
-
-    // Status escolhido manualmente no painel tem prioridade sobre o que foi detectado pelos uploads
-    const EXPLICIT_LABELS = {
-      in_progress: 'Em Edição', ready: 'Pronto (9:16)',
-      posted_pt: 'Postado (PT)', posted_es: 'Postado (ESP)', posted_en: 'Postado (ENG)',
-      posted_both: 'Postado nos 2', posted_all: 'Postado nos 3'
-    };
-    if (EXPLICIT_LABELS[projStatus]) {
-      currentStatusVal = projStatus;
-      currentStatusLabel = EXPLICIT_LABELS[projStatus];
-      currentStatusDot = projStatus;
-    } else if (isPostedBoth || projStatus === 'posted_both') {
-      currentStatusVal = 'posted_both';
-      currentStatusLabel = 'Postado nos 2';
-      currentStatusDot = 'posted_both';
-    } else if ((isPostedES && !isPostedBoth) || projStatus === 'posted_es') {
-      currentStatusVal = 'posted_es';
-      currentStatusLabel = 'Postado (ESP)';
-      currentStatusDot = 'posted_es';
-    } else if (projStatus === 'posted_en' || (isPostedEN && !isPostedPT && !isPostedES)) {
-      currentStatusVal = 'posted_en';
-      currentStatusLabel = 'Postado (ENG)';
-      currentStatusDot = 'posted_en';
-    } else if ((isPostedPT && !isPostedBoth) || projStatus === 'posted_pt' || (projStatus === 'posted' && !isPostedES)) {
-      currentStatusVal = 'posted_pt';
-      currentStatusLabel = 'Postado (PT)';
-      currentStatusDot = 'posted_pt';
+    if (anyPosted) {
+      currentStatusVal = 'posted';
+      currentStatusLabel = 'Postado';
     } else if (projStatus === 'ready') {
       currentStatusVal = 'ready';
       currentStatusLabel = 'Pronto (9:16)';
-      currentStatusDot = 'ready';
     }
+    const currentStatusDot = currentStatusVal;
 
     const langBadges = availableLangs.map(l => {
       const langName = l.toUpperCase();
       const langData = p.languages && p.languages[l];
       const hasVideo = langData ? (langData.urls?.vertical9x16 || langData.urls?.final) : (l === 'pt' && (p.hasVertical9x16 || p.hasFinal));
       
-      const isThisPosted = (l === 'pt' && isPostedPT) || (l === 'es' && isPostedES) || (postedLangs.includes(l));
+      const isThisPosted = postedLangs.includes(l);
       const ytUrl = (p.info?.youtubeUploads && p.info.youtubeUploads[l]?.url) || (l === 'pt' && p.info?.youtube?.url) || null;
 
       let pillBg = '#f1f5f9';
@@ -2740,7 +2739,7 @@ function filterAndDisplayProjects() {
         pillBg = '#f5f3ff';
         pillBorder = '#c4b5fd';
         pillColor = '#6d28d9';
-        statusDesc = 'Postado no YouTube';
+        statusDesc = 'Postado';
       } else if (hasVideo) {
         pillBg = '#ecfdf5';
         pillBorder = '#a7f3d0';
@@ -2748,16 +2747,15 @@ function filterAndDisplayProjects() {
         statusDesc = 'Vídeo 9:16 Pronto';
       }
 
-      if (isThisPosted && ytUrl) {
-        return `<a href="${ytUrl}" target="_blank" rel="noopener" style="text-decoration:none;" onclick="event.stopPropagation()">
-          <span style="display:inline-flex; align-items:center; gap:0.25rem; font-size:0.72rem; font-weight:700; padding:2px 7px; border-radius:4px; background:${pillBg}; border:1px solid ${pillBorder}; color:${pillColor}; cursor:pointer;" title="${langName}: ${statusDesc} (Abrir Short ↗)">
-            ${langName} ✓
-          </span>
-        </a>`;
-      }
+      const toggleTitle = isThisPosted
+        ? `${langName}: ${statusDesc}. Clique para desmarcar`
+        : `${langName}: ${statusDesc}. Clique para marcar como postado`;
+      const linkHtml = (isThisPosted && ytUrl)
+        ? `<a href="${ytUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Abrir Short no YouTube" style="text-decoration:none; font-size:0.72rem; color:${pillColor};">↗</a>`
+        : '';
 
-      return `<span style="display:inline-flex; align-items:center; font-size:0.72rem; font-weight:700; padding:2px 7px; border-radius:4px; background:${pillBg}; border:1px solid ${pillBorder}; color:${pillColor};" title="${langName}: ${statusDesc}">
-        ${langName}${isThisPosted ? ' ✓' : ''}
+      return `<span style="display:inline-flex; align-items:center; gap:3px;">
+        <button type="button" onclick="event.stopPropagation(); toggleLanguagePosted('${p.name}', '${l}')" title="${toggleTitle}" style="cursor:pointer; font-size:0.72rem; font-weight:700; padding:2px 7px; border-radius:4px; background:${pillBg}; border:1px solid ${pillBorder}; color:${pillColor};">${langName}${isThisPosted ? ' ✓' : ''}</button>${linkHtml}
       </span>`;
     }).join(' ');
 
@@ -2815,25 +2813,9 @@ function filterAndDisplayProjects() {
                 <span class="status-dot-indicator ready"></span>
                 <span>Pronto (9:16)</span>
               </div>
-              <div class="status-option ${currentStatusVal === 'posted_pt' ? 'active' : ''}" onclick="selectProjectStatusOption('${p.name}', 'posted_pt')">
-                <span class="status-dot-indicator posted_pt"></span>
-                <span>Postado (PT)</span>
-              </div>
-              <div class="status-option ${currentStatusVal === 'posted_es' ? 'active' : ''}" onclick="selectProjectStatusOption('${p.name}', 'posted_es')">
-                <span class="status-dot-indicator posted_es"></span>
-                <span>Postado (ESP)</span>
-              </div>
-              <div class="status-option ${currentStatusVal === 'posted_en' ? 'active' : ''}" onclick="selectProjectStatusOption('${p.name}', 'posted_en')">
-                <span class="status-dot-indicator posted_en"></span>
-                <span>Postado (ENG)</span>
-              </div>
-              <div class="status-option ${currentStatusVal === 'posted_all' ? 'active' : ''}" onclick="selectProjectStatusOption('${p.name}', 'posted_all')">
-                <span class="status-dot-indicator posted_all"></span>
-                <span>Postado nos 3</span>
-              </div>
-              <div class="status-option ${currentStatusVal === 'posted_both' ? 'active' : ''}" onclick="selectProjectStatusOption('${p.name}', 'posted_both')">
-                <span class="status-dot-indicator posted_both"></span>
-                <span>Postado nos 2</span>
+              <div class="status-option ${currentStatusVal === 'posted' ? 'active' : ''}" onclick="selectProjectStatusOption('${p.name}', 'posted')" title="Automático: marque os idiomas na coluna Idiomas">
+                <span class="status-dot-indicator posted"></span>
+                <span>Postado (automático)</span>
               </div>
             </div>
           </div>
