@@ -5,6 +5,11 @@
 let currentProject = null;
 let activePollingInterval = null;
 let activeStudioTab = 'base';
+
+// Estado de navegação vindo da URL (?tab=...&project=...&id=...&lang=...)
+// Guardado aqui para ser restaurado assim que o projeto for carregado.
+const _initUrlParams = new URLSearchParams(window.location.search);
+let pendingStudioState = { project: _initUrlParams.get('project'), lang: _initUrlParams.get('lang') };
 let pendingQueueItem = null;
 let currentSearchResults = [];
 
@@ -116,6 +121,13 @@ window.toggleGlobalMusic = function() {
 document.addEventListener('DOMContentLoaded', () => {
   updateGlobalMusicUI();
   setupTabs();
+
+  // Restaura a aba que estava aberta antes do F5 (ex.: ?tab=tab-pipeline)
+  const initTab = _initUrlParams.get('tab');
+  if (initTab && document.getElementById(initTab) && !window.location.hash.includes('tab-youtube')) {
+    switchTab(initTab);
+  }
+
   checkSystemStatus();
   loadProjects();
   loadYouTubeChannelsView();
@@ -595,8 +607,29 @@ function setupTabs() {
       if (targetTab === 'tab-youtube') {
         loadYouTubeChannelsView();
       }
+
+      syncUrlState();
     });
   });
+}
+
+// Mantém na URL a aba ativa, o projeto aberto, o vídeo e o idioma do estúdio.
+// Assim, ao atualizar a página, o usuário volta exatamente ao mesmo lugar.
+function syncUrlState() {
+  try {
+    const url = new URL(window.location.href);
+    const activeEl = document.querySelector('.tab-content.active');
+    if (activeEl && activeEl.id) url.searchParams.set('tab', activeEl.id);
+    if (currentProject && currentProject.name) {
+      const videoId = (currentProject.info && currentProject.info.id)
+        ? currentProject.info.id
+        : ('VID-' + currentProject.name.slice(0, 6).toUpperCase());
+      url.searchParams.set('project', currentProject.name);
+      url.searchParams.set('id', videoId);
+      url.searchParams.set('lang', activeStudioTab || 'base');
+    }
+    window.history.replaceState(window.history.state, '', url.toString());
+  } catch (_) {}
 }
 
 function switchTab(tabId) {
@@ -1053,13 +1086,8 @@ async function selectProject(name) {
       badgeId.setAttribute('data-id', videoId);
     }
 
-    // Sincroniza parâmetros na URL do navegador sem recarregar (?project=...&id=...)
-    try {
-      const url = new URL(window.location);
-      url.searchParams.set('project', project.name);
-      url.searchParams.set('id', videoId);
-      window.history.replaceState({ project: project.name, id: videoId }, '', url.toString());
-    } catch (_) {}
+    // Sincroniza tab, projeto, vídeo e idioma na URL sem recarregar
+    syncUrlState();
 
     // Atualiza data de postagem agendada
     const inputScheduledDate = document.getElementById('input-scheduled-date');
@@ -3650,6 +3678,16 @@ function renderStudioLangTabs(project) {
     activeStudioTab = availableLangs[0] || 'base';
   }
 
+  // Restaura o idioma do estúdio vindo da URL, só para o projeto que estava aberto
+  if (project && pendingStudioState.project && project.name === pendingStudioState.project) {
+    const wanted = pendingStudioState.lang;
+    if (wanted && (wanted === 'base' || availableLangs.includes(wanted))) {
+      activeStudioTab = wanted;
+    }
+    pendingStudioState = { project: null, lang: null };
+    syncUrlState();
+  }
+
   let html = `
     <button type="button" class="studio-lang-tab-btn ${activeStudioTab === 'base' ? 'active' : ''}" data-lang="base" onclick="switchStudioTab('base')">
       Geral (Base)
@@ -3696,6 +3734,7 @@ function renderStudioLangTabs(project) {
 
 function switchStudioTab(tabKey) {
   activeStudioTab = tabKey;
+  syncUrlState();
   if (!currentProject) return;
 
   document.querySelectorAll('.studio-lang-tab-btn').forEach(btn => {
