@@ -212,6 +212,9 @@ document.addEventListener('DOMContentLoaded', () => {
   updateGlobalMusicUI();
   setupTabs();
   document.getElementById('btn-refresh-metrics')?.addEventListener('click', loadVideoMetrics);
+  // Trocar de canal busca de novo no servidor; trocar a ordenação só reordena os dados já carregados
+  document.getElementById('metrics-channel')?.addEventListener('change', loadVideoMetrics);
+  document.getElementById('metrics-sort')?.addEventListener('change', renderMetricsGrid);
 
   // Restaura a aba que estava aberta antes do F5 (ex.: ?tab=tab-pipeline)
   const initTab = _initUrlParams.get('tab');
@@ -1033,43 +1036,168 @@ function fmtMetric(n) {
   return n === null || n === undefined ? '—' : Number(n).toLocaleString('pt-BR');
 }
 
+// Dados da última busca (usados para reordenar/filtrar sem nova chamada à API)
+let metricsData = null;
+
+function metricsAgeDays(publishedAt) {
+  if (!publishedAt) return null;
+  return Math.max(1, (Date.now() - new Date(publishedAt).getTime()) / 86400000);
+}
+
+function fmtPctMetric(x) {
+  return x === null || x === undefined || !isFinite(x) ? '—' : (x * 100).toFixed(1).replace('.', ',') + '%';
+}
+
+function fmtDecMetric(x) {
+  return x === null || x === undefined || !isFinite(x) ? '—' : Number(x).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+}
+
+// Insights calculados a partir dos números já existentes (sem chamadas extras à API)
+function computeMetricInsights(videos) {
+  const found = videos.filter(v => v.found && v.views > 0);
+  const avgViews = found.length ? found.reduce((s, v) => s + v.views, 0) / found.length : 0;
+  const topId = found.length ? found.reduce((best, v) => (v.views > best.views ? v : best)).videoId : null;
+
+  const byId = {};
+  for (const v of videos) {
+    const days = metricsAgeDays(v.publishedAt);
+    const insight = { days, avgViews };
+    if (v.found) {
+      insight.engagement = v.views ? (v.likes + v.comments) / v.views : null;
+      insight.likeRate = v.views ? v.likes / v.views : null;
+      insight.commentRate = v.views ? v.comments / v.views : null;
+      insight.viewsPerDay = days ? v.views / days : null;
+      insight.vsAvg = avgViews && v.views ? v.views / avgViews : null;
+      insight.isTop = v.videoId === topId && found.length > 1;
+    }
+    byId[v.videoId] = insight;
+  }
+  return byId;
+}
+
+function sortMetricVideos(list, mode) {
+  const arr = [...list];
+  const engOf = v => (v.found && v.views ? (v.likes + v.comments) / v.views : -1);
+  const vpdOf = v => (v.found ? v.views / (metricsAgeDays(v.publishedAt) || 1) : -1);
+  const timeOf = v => (v.publishedAt ? new Date(v.publishedAt).getTime() : 0);
+  if (mode === 'engagement') arr.sort((a, b) => engOf(b) - engOf(a));
+  else if (mode === 'viewsPerDay') arr.sort((a, b) => vpdOf(b) - vpdOf(a));
+  else if (mode === 'recent') arr.sort((a, b) => timeOf(b) - timeOf(a));
+  else arr.sort((a, b) => (b.views || 0) - (a.views || 0));
+  return arr;
+}
+
+function renderMetricsChannelOptions(channels, selected) {
+  const sel = document.getElementById('metrics-channel');
+  if (!sel) return;
+  sel.innerHTML = '<option value="all">Todos os canais</option>' + (channels || []).map(c =>
+    `<option value="${escMetric(c.id)}">${escMetric(c.alias || c.name)}</option>`).join('');
+  sel.value = [...sel.options].some(o => o.value === selected) ? selected : 'all';
+}
+
+function renderMetricsGrid() {
+  const grid = document.getElementById('metrics-videos');
+  if (!grid || !metricsData) return;
+  const sortMode = document.getElementById('metrics-sort')?.value || 'views';
+  const videos = metricsData.videos || [];
+
+  if (!videos.length) {
+    grid.innerHTML = '<div class="metrics-empty">Nenhum Short publicado com ID registrado para este canal.</div>';
+    return;
+  }
+
+  const insights = computeMetricInsights(videos);
+  const ordered = sortMetricVideos(videos, sortMode);
+  const showChannel = metricsData.channel === 'all';
+
+  grid.innerHTML = ordered.map(v => {
+    const ins = insights[v.videoId] || {};
+    const date = v.publishedAt ? new Date(v.publishedAt).toLocaleDateString('pt-BR') : '—';
+    const days = ins.days ? `${Math.round(ins.days)}d` : '';
+
+    let perfTag = '<span class="metrics-tag tag-muted">Sem dados</span>';
+    if (v.found && ins.vsAvg !== null && ins.vsAvg !== undefined) {
+      if (ins.vsAvg >= 1.5) perfTag = '<span class="metrics-tag tag-up">▲ Acima da média</span>';
+      else if (ins.vsAvg <= 0.5) perfTag = '<span class="metrics-tag tag-down">▼ Abaixo da média</span>';
+      else perfTag = '<span class="metrics-tag tag-neutral">● Na média</span>';
+    }
+    const topTag = ins.isTop ? '<span class="metrics-tag tag-top">🏆 Melhor views</span>' : '';
+
+    const stat = (label, value) => `<div class="metrics-card-stat"><span>${label}</span><strong>${value}</strong></div>`;
+    const stats = v.found
+      ? stat('Views', fmtMetric(v.views)) + stat('Likes', fmtMetric(v.likes)) + stat('Coment.', fmtMetric(v.comments))
+      : '<div class="metrics-card-missing">Sem dados retornados pelo YouTube</div>';
+
+    const insightLine = v.found
+      ? `<span>Engajamento <strong>${fmtPctMetric(ins.engagement)}</strong></span>
+         <span>Likes/view <strong>${fmtPctMetric(ins.likeRate)}</strong></span>
+         <span>Views/dia <strong>${fmtDecMetric(ins.viewsPerDay)}</strong></span>`
+      : '';
+
+    return `
+      <article class="metrics-card">
+        <a class="metrics-thumb" href="${escMetric(v.url)}" target="_blank" rel="noopener">
+          ${v.thumbnail ? `<img src="${escMetric(v.thumbnail)}" alt="" loading="lazy">` : '<div class="metrics-thumb-empty">Sem miniatura</div>'}
+          <span class="metrics-lang-badge">${escMetric(String(v.lang).toUpperCase())}</span>
+          ${topTag ? `<span class="metrics-thumb-top">${topTag}</span>` : ''}
+        </a>
+        <div class="metrics-card-body">
+          <a class="metrics-card-title" href="${escMetric(v.url)}" target="_blank" rel="noopener" title="${escMetric(v.title)}">${escMetric(v.title)}</a>
+          <div class="metrics-card-meta">${showChannel && v.channelName ? `${escMetric(v.channelName)} · ` : ''}${date}${days ? ` · há ${days}` : ''}</div>
+          <div class="metrics-card-stats">${stats}</div>
+          <div class="metrics-card-insights">
+            ${perfTag}
+            ${insightLine}
+          </div>
+        </div>
+      </article>`;
+  }).join('');
+}
+
 async function loadVideoMetrics() {
   if (metricsLoading) return;
   metricsLoading = true;
 
   const kpis = document.getElementById('metrics-kpis');
   const langs = document.getElementById('metrics-langs');
-  const tbody = document.getElementById('metrics-videos');
+  const grid = document.getElementById('metrics-videos');
   const errBox = document.getElementById('metrics-errors');
-  if (!kpis || !tbody) { metricsLoading = false; return; }
+  const channelSel = document.getElementById('metrics-channel');
+  if (!kpis || !grid) { metricsLoading = false; return; }
 
-  // Animação de carregamento: anel girando + linhas fantasma
-  const skeletonRow = `
-    <tr class="skeleton-row">
-      <td><div class="skeleton" style="width:70%; height:12px;"></div></td>
-      <td><div class="skeleton" style="width:60%; height:12px;"></div></td>
-      <td><div class="skeleton" style="width:70%; height:12px;"></div></td>
-      <td><div class="skeleton" style="width:50%; height:12px;"></div></td>
-      <td><div class="skeleton" style="width:50%; height:12px;"></div></td>
-      <td><div class="skeleton" style="width:50%; height:12px;"></div></td>
-    </tr>`;
+  // Animação de carregamento: anel girando + cartões fantasma
+  const skeletonCard = `
+    <div class="metrics-card metrics-card-skeleton">
+      <div class="metrics-thumb"><div class="skeleton" style="width:100%; height:100%;"></div></div>
+      <div class="metrics-card-body">
+        <div class="skeleton" style="width:80%; height:12px;"></div>
+        <div class="skeleton" style="width:50%; height:12px;"></div>
+        <div class="skeleton" style="width:90%; height:28px;"></div>
+      </div>
+    </div>`;
   kpis.innerHTML = '<div class="loading-status" style="grid-column: 1/-1;"><span class="loader-ring"></span><span>Buscando métricas no YouTube...</span></div>';
   if (langs) langs.innerHTML = '';
-  tbody.innerHTML = skeletonRow.repeat(4);
+  grid.innerHTML = skeletonCard.repeat(6);
   if (errBox) errBox.innerHTML = '';
 
+  const channel = channelSel?.value || 'all';
+
   try {
-    const res = await fetch('/api/youtube/video-stats');
+    const res = await fetch(`/api/youtube/video-stats?channel=${encodeURIComponent(channel)}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Falha ao buscar métricas');
 
+    metricsData = data;
+    renderMetricsChannelOptions(data.channels, channel);
+
     const t = data.totals || { videos: 0, views: 0, likes: 0, comments: 0 };
+    const avg = t.videos ? t.views / t.videos : null;
     const kpiCard = (label, value) => `
       <div class="metrics-kpi">
         <div class="metrics-kpi-label">${label}</div>
         <div class="metrics-kpi-value">${fmtMetric(value)}</div>
       </div>`;
-    kpis.innerHTML = kpiCard('Vídeos publicados', t.videos) + kpiCard('Views', t.views) + kpiCard('Likes', t.likes) + kpiCard('Comentários', t.comments);
+    kpis.innerHTML = kpiCard('Vídeos publicados', t.videos) + kpiCard('Views', t.views) + kpiCard('Likes', t.likes) + kpiCard('Comentários', t.comments) + kpiCard('Média de views', avg === null ? null : Math.round(avg));
 
     if (langs) {
       langs.innerHTML = (data.byLang || []).length
@@ -1086,30 +1214,14 @@ async function loadVideoMetrics() {
         : '<div class="metrics-empty">Nenhum vídeo publicado com registro no YouTube ainda.</div>';
     }
 
-    tbody.innerHTML = (data.videos || []).length
-      ? data.videos.map(v => {
-          const date = v.publishedAt ? new Date(v.publishedAt).toLocaleDateString('pt-BR') : '—';
-          return `
-            <tr>
-              <td style="padding: 0.75rem 1rem;">
-                <a href="${escMetric(v.url)}" target="_blank" rel="noopener" style="color: var(--color-frost-white); text-decoration: none; font-weight: 600;">${escMetric(v.title)}</a>
-                <div class="project-subtitle-mono" style="font-size: 0.7rem;">${escMetric(v.videoId)}</div>
-              </td>
-              <td style="padding: 0.75rem 1rem; text-align: center;">${escMetric(String(v.lang).toUpperCase())}</td>
-              <td style="padding: 0.75rem 1rem; text-align: center;">${date}</td>
-              <td style="padding: 0.75rem 1rem; text-align: center; font-weight: 700;">${v.found ? fmtMetric(v.views) : '—'}</td>
-              <td style="padding: 0.75rem 1rem; text-align: center;">${v.found ? fmtMetric(v.likes) : '—'}</td>
-              <td style="padding: 0.75rem 1rem; text-align: center;">${v.found ? fmtMetric(v.comments) : '—'}</td>
-            </tr>`;
-        }).join('')
-      : '<tr><td colspan="6" style="padding: 1.5rem; text-align: center; color: var(--color-fog-text);">Nenhum Short publicado com ID registrado.</td></tr>';
+    renderMetricsGrid();
 
     if (errBox && (data.errors || []).length) {
       errBox.innerHTML = `<div class="metrics-error"><strong>Alguns canais não responderam:</strong><br>${data.errors.map(e => escMetric(e)).join('<br>')}</div>`;
     }
   } catch (err) {
     kpis.innerHTML = `<div class="metrics-error" style="grid-column: 1/-1;">⚠️ ${escMetric(err.message)}</div>`;
-    tbody.innerHTML = '';
+    grid.innerHTML = '';
   } finally {
     metricsLoading = false;
   }

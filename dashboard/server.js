@@ -717,6 +717,13 @@ const server = http.createServer(async (req, res) => {
     // Usa o canal dono de cada upload (channelId salvo no info.json) para consultar a API.
     // ----------------------------------------------------
     if (pathname === '/api/youtube/video-stats' && req.method === 'GET') {
+      // ?channel=<channelId> filtra por canal; ausente ou "all" = todos os canais
+      const channelFilter = url.searchParams.get('channel');
+      const filterChannel = channelFilter && channelFilter !== 'all' ? channelFilter : null;
+
+      const connectedChannels = youtubeManager.getPublicChannelsList().channels;
+      const channelNameById = Object.fromEntries(connectedChannels.map(c => [c.id, c.alias || c.name]));
+
       const uploads = [];
       for (const dir of fs.readdirSync(VIDEOS_DIR)) {
         const infoFile = path.join(VIDEOS_DIR, dir, 'info.json');
@@ -724,7 +731,7 @@ const server = http.createServer(async (req, res) => {
         let info;
         try { info = JSON.parse(fs.readFileSync(infoFile, 'utf-8')); } catch (_) { continue; }
         for (const [lang, u] of Object.entries(info.youtubeUploads || {})) {
-          if (u && u.videoId && u.channelId) {
+          if (u && u.videoId && u.channelId && (!filterChannel || u.channelId === filterChannel)) {
             uploads.push({
               project: dir,
               title: info.title || dir,
@@ -762,10 +769,14 @@ const server = http.createServer(async (req, res) => {
             }
             for (const it of j.items || []) {
               const s = it.statistics || {};
+              const th = it.snippet?.thumbnails || {};
+              const thumb = (th.high || th.medium || th.default || {}).url || null;
               statsById[it.id] = {
                 views: parseInt(s.viewCount || '0', 10),
                 likes: parseInt(s.likeCount || '0', 10),
-                comments: parseInt(s.commentCount || '0', 10)
+                comments: parseInt(s.commentCount || '0', 10),
+                thumbnail: thumb,
+                title: it.snippet?.title || null
               };
             }
           }
@@ -776,7 +787,15 @@ const server = http.createServer(async (req, res) => {
 
       const videos = uploads.map(up => {
         const st = statsById[up.videoId];
-        return { ...up, found: !!st, views: st ? st.views : null, likes: st ? st.likes : null, comments: st ? st.comments : null };
+        return {
+          ...up,
+          channelName: channelNameById[up.channelId] || null,
+          thumbnail: st?.thumbnail || `https://i.ytimg.com/vi/${up.videoId}/hqdefault.jpg`,
+          found: !!st,
+          views: st ? st.views : null,
+          likes: st ? st.likes : null,
+          comments: st ? st.comments : null
+        };
       }).sort((a, b) => (b.views || 0) - (a.views || 0));
 
       const sumOf = (list, key) => list.reduce((acc, v) => acc + (v[key] || 0), 0);
@@ -794,6 +813,14 @@ const server = http.createServer(async (req, res) => {
 
       return sendJson(res, 200, {
         updatedAt: new Date().toISOString(),
+        channel: filterChannel || 'all',
+        channels: connectedChannels.map(c => ({
+          id: c.id,
+          name: c.name,
+          alias: c.alias || c.name,
+          avatar: c.avatar || null,
+          subscribers: c.subscribers ?? null
+        })),
         totals: {
           videos: videos.length,
           views: sumOf(videos, 'views'),
