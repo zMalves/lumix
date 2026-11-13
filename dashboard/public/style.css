@@ -1547,8 +1547,8 @@ textarea.code-textarea {
 .projects-table th:nth-child(2),
 .projects-table td:nth-child(2) {
   white-space: normal !important;
-  min-width: 280px;
-  max-width: 440px;
+  min-width: 240px;
+  max-width: 360px;
 }
 
 .project-status-control {

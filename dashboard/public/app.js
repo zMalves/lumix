@@ -2808,7 +2808,7 @@ function filterAndDisplayProjects() {
 
         <!-- Idiomas -->
         <td style="padding: 0.75rem 1rem; vertical-align: middle;">
-          <div style="display: flex; gap: 0.3rem; align-items: center; flex-wrap: nowrap; white-space: nowrap;">
+          <div style="display: flex; gap: 0.3rem 0.35rem; align-items: center; flex-wrap: wrap; max-width: 170px;">
             ${langBadges}
           </div>
         </td>
