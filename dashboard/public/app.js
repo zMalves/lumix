@@ -121,6 +121,7 @@ window.toggleGlobalMusic = function() {
 document.addEventListener('DOMContentLoaded', () => {
   updateGlobalMusicUI();
   setupTabs();
+  document.getElementById('btn-refresh-metrics')?.addEventListener('click', loadVideoMetrics);
 
   // Restaura a aba que estava aberta antes do F5 (ex.: ?tab=tab-pipeline)
   const initTab = _initUrlParams.get('tab');
@@ -608,6 +609,11 @@ function setupTabs() {
         loadYouTubeChannelsView();
       }
 
+      // Se navegou para Métricas, busca as estatísticas no YouTube
+      if (targetTab === 'tab-metrics') {
+        loadVideoMetrics();
+      }
+
       syncUrlState();
     });
   });
@@ -921,6 +927,101 @@ window.toggleStatusDropdown = function(projectName, triggerBtn, event) {
     if (parent) parent.classList.add('open');
   }
 };
+
+// --------------------------------------------------------------------------
+// MÉTRICAS DOS SHORTS (somente leitura, via /api/youtube/video-stats)
+// --------------------------------------------------------------------------
+let metricsLoading = false;
+
+function escMetric(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function fmtMetric(n) {
+  return n === null || n === undefined ? '—' : Number(n).toLocaleString('pt-BR');
+}
+
+async function loadVideoMetrics() {
+  if (metricsLoading) return;
+  metricsLoading = true;
+
+  const kpis = document.getElementById('metrics-kpis');
+  const langs = document.getElementById('metrics-langs');
+  const tbody = document.getElementById('metrics-videos');
+  const errBox = document.getElementById('metrics-errors');
+  if (!kpis || !tbody) { metricsLoading = false; return; }
+
+  // Animação de carregamento: anel girando + linhas fantasma
+  const skeletonRow = `
+    <tr class="skeleton-row">
+      <td><div class="skeleton" style="width:70%; height:12px;"></div></td>
+      <td><div class="skeleton" style="width:60%; height:12px;"></div></td>
+      <td><div class="skeleton" style="width:70%; height:12px;"></div></td>
+      <td><div class="skeleton" style="width:50%; height:12px;"></div></td>
+      <td><div class="skeleton" style="width:50%; height:12px;"></div></td>
+      <td><div class="skeleton" style="width:50%; height:12px;"></div></td>
+    </tr>`;
+  kpis.innerHTML = '<div class="loading-status" style="grid-column: 1/-1;"><span class="loader-ring"></span><span>Buscando métricas no YouTube...</span></div>';
+  if (langs) langs.innerHTML = '';
+  tbody.innerHTML = skeletonRow.repeat(4);
+  if (errBox) errBox.innerHTML = '';
+
+  try {
+    const res = await fetch('/api/youtube/video-stats');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Falha ao buscar métricas');
+
+    const t = data.totals || { videos: 0, views: 0, likes: 0, comments: 0 };
+    const kpiCard = (label, value) => `
+      <div class="metrics-kpi">
+        <div class="metrics-kpi-label">${label}</div>
+        <div class="metrics-kpi-value">${fmtMetric(value)}</div>
+      </div>`;
+    kpis.innerHTML = kpiCard('Vídeos publicados', t.videos) + kpiCard('Views', t.views) + kpiCard('Likes', t.likes) + kpiCard('Comentários', t.comments);
+
+    if (langs) {
+      langs.innerHTML = (data.byLang || []).length
+        ? data.byLang.map(l => {
+            const meta = (typeof LANG_METADATA !== 'undefined' && LANG_METADATA[l.lang]) || { label: l.lang.toUpperCase(), flag: '🌐' };
+            return `
+              <div class="metrics-lang-card">
+                <div class="metrics-lang-title">${meta.flag || ''} ${escMetric(meta.label)}</div>
+                <div class="metrics-lang-row"><span>Vídeos</span><strong>${fmtMetric(l.videos)}</strong></div>
+                <div class="metrics-lang-row"><span>Views</span><strong>${fmtMetric(l.views)}</strong></div>
+                <div class="metrics-lang-row"><span>Likes</span><strong>${fmtMetric(l.likes)}</strong></div>
+              </div>`;
+          }).join('')
+        : '<div class="metrics-empty">Nenhum vídeo publicado com registro no YouTube ainda.</div>';
+    }
+
+    tbody.innerHTML = (data.videos || []).length
+      ? data.videos.map(v => {
+          const date = v.publishedAt ? new Date(v.publishedAt).toLocaleDateString('pt-BR') : '—';
+          return `
+            <tr>
+              <td style="padding: 0.75rem 1rem;">
+                <a href="${escMetric(v.url)}" target="_blank" rel="noopener" style="color: var(--color-frost-white); text-decoration: none; font-weight: 600;">${escMetric(v.title)}</a>
+                <div class="project-subtitle-mono" style="font-size: 0.7rem;">${escMetric(v.videoId)}</div>
+              </td>
+              <td style="padding: 0.75rem 1rem; text-align: center;">${escMetric(String(v.lang).toUpperCase())}</td>
+              <td style="padding: 0.75rem 1rem; text-align: center;">${date}</td>
+              <td style="padding: 0.75rem 1rem; text-align: center; font-weight: 700;">${v.found ? fmtMetric(v.views) : '—'}</td>
+              <td style="padding: 0.75rem 1rem; text-align: center;">${v.found ? fmtMetric(v.likes) : '—'}</td>
+              <td style="padding: 0.75rem 1rem; text-align: center;">${v.found ? fmtMetric(v.comments) : '—'}</td>
+            </tr>`;
+        }).join('')
+      : '<tr><td colspan="6" style="padding: 1.5rem; text-align: center; color: var(--color-fog-text);">Nenhum Short publicado com ID registrado.</td></tr>';
+
+    if (errBox && (data.errors || []).length) {
+      errBox.innerHTML = `<div class="metrics-error"><strong>Alguns canais não responderam:</strong><br>${data.errors.map(e => escMetric(e)).join('<br>')}</div>`;
+    }
+  } catch (err) {
+    kpis.innerHTML = `<div class="metrics-error" style="grid-column: 1/-1;">⚠️ ${escMetric(err.message)}</div>`;
+    tbody.innerHTML = '';
+  } finally {
+    metricsLoading = false;
+  }
+}
 
 // Marca/desmarca um idioma como postado (clique no selo da coluna Idiomas)
 window.toggleLanguagePosted = async function(projectName, lang) {

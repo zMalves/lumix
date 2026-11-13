@@ -1544,6 +1544,120 @@ textarea.code-textarea {
   vertical-align: middle;
 }
 
+/* Aba de Métricas */
+.metrics-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.metrics-header h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--color-frost-white);
+}
+
+.metrics-sub {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  color: var(--color-fog-text);
+}
+
+.metrics-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 1.5rem;
+}
+
+.metrics-kpi {
+  background: #ffffff;
+  border: 1px solid var(--color-carbon-border);
+  border-radius: var(--radius-cards);
+  box-shadow: var(--shadow-card);
+  padding: 1rem 1.1rem;
+}
+
+.metrics-kpi-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-fog-text);
+  font-family: var(--font-mono);
+}
+
+.metrics-kpi-value {
+  margin-top: 0.4rem;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--color-frost-white);
+}
+
+.metrics-section {
+  margin-bottom: 1.5rem;
+}
+
+.metrics-section h3 {
+  margin: 0 0 0.6rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-frost-white);
+}
+
+.metrics-langs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.85rem;
+}
+
+.metrics-lang-card {
+  background: #ffffff;
+  border: 1px solid var(--color-carbon-border);
+  border-radius: var(--radius-cards);
+  box-shadow: var(--shadow-card);
+  padding: 0.9rem 1rem;
+}
+
+.metrics-lang-title {
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: var(--color-frost-white);
+}
+
+.metrics-lang-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  color: var(--color-fog-text);
+  padding: 0.15rem 0;
+}
+
+.metrics-lang-row strong {
+  color: var(--color-frost-white);
+}
+
+.metrics-empty {
+  grid-column: 1/-1;
+  padding: 1rem;
+  color: var(--color-fog-text);
+  font-size: 0.85rem;
+}
+
+.metrics-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  border-radius: var(--radius-cards);
+  padding: 0.85rem 1rem;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
 .projects-table th:nth-child(2),
 .projects-table td:nth-child(2) {
   white-space: normal !important;

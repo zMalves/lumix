@@ -712,6 +712,100 @@ const server = http.createServer(async (req, res) => {
     // ----------------------------------------------------
     // API: YouTube Multi-Canal (OAuth 2.0, Troca de canal, Apelidos, Métricas)
     // ----------------------------------------------------
+    // ----------------------------------------------------
+    // API: Métricas dos Shorts publicados (somente leitura: views, likes, comentários)
+    // Usa o canal dono de cada upload (channelId salvo no info.json) para consultar a API.
+    // ----------------------------------------------------
+    if (pathname === '/api/youtube/video-stats' && req.method === 'GET') {
+      const uploads = [];
+      for (const dir of fs.readdirSync(VIDEOS_DIR)) {
+        const infoFile = path.join(VIDEOS_DIR, dir, 'info.json');
+        if (!fs.existsSync(infoFile)) continue;
+        let info;
+        try { info = JSON.parse(fs.readFileSync(infoFile, 'utf-8')); } catch (_) { continue; }
+        for (const [lang, u] of Object.entries(info.youtubeUploads || {})) {
+          if (u && u.videoId && u.channelId) {
+            uploads.push({
+              project: dir,
+              title: info.title || dir,
+              lang,
+              videoId: u.videoId,
+              channelId: u.channelId,
+              publishedAt: u.publishedAt || null,
+              url: u.url || `https://www.youtube.com/shorts/${u.videoId}`
+            });
+          }
+        }
+      }
+
+      // Agrupa os IDs por canal dono (uma consulta por canal, em lotes de 50)
+      const idsByChannel = {};
+      for (const up of uploads) {
+        (idsByChannel[up.channelId] ||= []).push(up.videoId);
+      }
+
+      const statsById = {};
+      const errors = [];
+      for (const [channelId, ids] of Object.entries(idsByChannel)) {
+        try {
+          const token = await youtubeManager.getValidAccessToken(channelId);
+          for (let k = 0; k < ids.length; k += 50) {
+            const chunk = ids.slice(k, k + 50);
+            const r = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet&id=${encodeURIComponent(chunk.join(','))}`, {
+              headers: { Authorization: `Bearer ${token}` },
+              signal: AbortSignal.timeout(15000)
+            });
+            const j = await r.json();
+            if (!r.ok) {
+              errors.push(`Canal ${channelId}: ${j.error?.message || 'HTTP ' + r.status}`);
+              continue;
+            }
+            for (const it of j.items || []) {
+              const s = it.statistics || {};
+              statsById[it.id] = {
+                views: parseInt(s.viewCount || '0', 10),
+                likes: parseInt(s.likeCount || '0', 10),
+                comments: parseInt(s.commentCount || '0', 10)
+              };
+            }
+          }
+        } catch (e) {
+          errors.push(`Canal ${channelId}: ${e.message}`);
+        }
+      }
+
+      const videos = uploads.map(up => {
+        const st = statsById[up.videoId];
+        return { ...up, found: !!st, views: st ? st.views : null, likes: st ? st.likes : null, comments: st ? st.comments : null };
+      }).sort((a, b) => (b.views || 0) - (a.views || 0));
+
+      const sumOf = (list, key) => list.reduce((acc, v) => acc + (v[key] || 0), 0);
+      const byLangMap = {};
+      for (const v of videos) {
+        (byLangMap[v.lang] ||= []).push(v);
+      }
+      const byLang = Object.entries(byLangMap).map(([lang, list]) => ({
+        lang,
+        videos: list.length,
+        views: sumOf(list, 'views'),
+        likes: sumOf(list, 'likes'),
+        comments: sumOf(list, 'comments')
+      }));
+
+      return sendJson(res, 200, {
+        updatedAt: new Date().toISOString(),
+        totals: {
+          videos: videos.length,
+          views: sumOf(videos, 'views'),
+          likes: sumOf(videos, 'likes'),
+          comments: sumOf(videos, 'comments')
+        },
+        byLang,
+        videos,
+        errors
+      });
+    }
+
     if (pathname === '/api/youtube/channels' && req.method === 'GET') {
       return sendJson(res, 200, youtubeManager.getPublicChannelsList());
     }
