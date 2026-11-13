@@ -1,5 +1,5 @@
-# ============================================================
-# Segredos e sessões (NUNCA versionar)
+﻿# ============================================================
+# Segredos e sessÃµes (NUNCA versionar)
 # ============================================================
 .env
 .env.*
@@ -13,7 +13,7 @@ data/*token*
 *.key
 
 # ============================================================
-# Scripts com credenciais escritas no código (ficam só na máquina local)
+# Scripts com credenciais escritas no cÃ³digo (ficam sÃ³ na mÃ¡quina local)
 # Migrar para o .env antes de versionar.
 # ============================================================
 scripts/auth_youtube.js
@@ -29,11 +29,10 @@ scripts/sync_update_server.js
 test_vmake_auth.js
 
 # ============================================================
-# Produção de vídeo: mídia e projetos gerados
+# ProduÃ§Ã£o de vÃ­deo: mÃ­dia e projetos gerados
 # ============================================================
 videos/
 screenshots/
-assets/
 *.mp4
 *.mov
 *.mp3
@@ -47,12 +46,12 @@ assets/
 *.ass
 *.srt
 
-# Estado local da fila e índices gerados em tempo de execução
+# Estado local da fila e Ã­ndices gerados em tempo de execuÃ§Ã£o
 videos/production_queue.json
 dashboard/**/*.cache.json
 
 # ============================================================
-# Ferramentas binárias e dependências
+# Ferramentas binÃ¡rias e dependÃªncias
 # ============================================================
 tools/*.exe
 node_modules/
@@ -99,7 +98,7 @@ Thumbs.db
 desktop.ini
 .DS_Store
 
-# Scripts que dependem de ssh_helper.js (acesso SSH ao servidor; ficam só na máquina local)
+# Scripts que dependem de ssh_helper.js (acesso SSH ao servidor; ficam sÃ³ na mÃ¡quina local)
 
 scripts/check_failed_remote.js
 scripts/check_live_remote.js
@@ -111,3 +110,9 @@ scripts/test_ffmpeg_mix.js
 scripts/test_find_hd.js
 scripts/test_merge_post.js
 scripts/test_tiktok.js
+
+# Trilha de fundo usada pelo pipeline (versionada). Backups antigos ficam fora.
+!assets/music/Ogryzek.mp3
+assets/music/*backup*.mp3
+assets/music/*old*.mp3
+
