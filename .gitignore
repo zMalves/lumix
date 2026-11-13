@@ -98,3 +98,16 @@ Web Data
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# Scripts que dependem de ssh_helper.js (acesso SSH ao servidor; ficam só na máquina local)
+
+scripts/check_failed_remote.js
+scripts/check_live_remote.js
+scripts/check_tail.js
+scripts/check_videos_folder.js
+scripts/check_www.js
+scripts/test_dbfs.js
+scripts/test_ffmpeg_mix.js
+scripts/test_find_hd.js
+scripts/test_merge_post.js
+scripts/test_tiktok.js
