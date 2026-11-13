@@ -1,0 +1,801 @@
+{
+  "title": "Vmake Labs Workspace: Crie vídeos virais para redes sociais",
+  "url": "https://vmake.ai/pt/workspace",
+  "extractedAt": "2026-10-22T00:03:50.906Z",
+  "userInfo": null,
+  "categories": [],
+  "tools": [
+    {
+      "name": "Criar vídeo para redes",
+      "description": "",
+      "url": "https://vmake.ai/pt/agent"
+    },
+    {
+      "name": "Início",
+      "description": "",
+      "url": "https://vmake.ai/pt/workspace"
+    },
+    {
+      "name": "Removedor de vídeo e imagem",
+      "description": "",
+      "url": "https://vmake.ai/pt/video-watermark-remover/upload"
+    },
+    {
+      "name": "Aprimorador de vídeo e imagem",
+      "description": "",
+      "url": "https://vmake.ai/pt/video-enhancer/upload"
+    },
+    {
+      "name": "Todas as ferramentas",
+      "description": "",
+      "url": "https://vmake.ai/pt/all-tools"
+    },
+    {
+      "name": "Histórico",
+      "description": "",
+      "url": "https://vmake.ai/pt/projects-records"
+    },
+    {
+      "name": "Preços",
+      "description": "",
+      "url": "https://vmake.ai/pt/pricing"
+    },
+    {
+      "name": "Gerador de vídeo UGC",
+      "description": "",
+      "url": "https://vmake.ai/pt/ugc-video"
+    },
+    {
+      "name": "Recriar vídeo",
+      "description": "",
+      "url": "https://vmake.ai/pt/clone-viral-video"
+    },
+    {
+      "name": "Vídeo de avatar IA",
+      "description": "",
+      "url": "https://vmake.ai/pt/ai-avatar"
+    },
+    {
+      "name": "Vitrine de produto",
+      "description": "",
+      "url": "https://vmake.ai/pt/product-video"
+    },
+    {
+      "name": "Gerador de gancho",
+      "description": "",
+      "url": "https://vmake.ai/pt/visual-hook"
+    },
+    {
+      "name": "Legenda automática",
+      "description": "",
+      "url": "https://vmake.ai/pt/auto-generated-captions"
+    },
+    {
+      "name": "Removedor de marca d'água",
+      "description": "",
+      "url": "https://vmake.ai/pt/video-watermark-remover"
+    },
+    {
+      "name": "Aprimorador de vídeo",
+      "description": "",
+      "url": "https://vmake.ai/pt/video-enhancer"
+    },
+    {
+      "name": "Removedor de fundo",
+      "description": "",
+      "url": "https://vmake.ai/pt/video-background-remover"
+    },
+    {
+      "name": "Remover texto",
+      "description": "",
+      "url": "https://vmake.ai/pt/delete-text-from-video"
+    },
+    {
+      "name": "Remover ruído",
+      "description": "",
+      "url": "https://vmake.ai/pt/remove-noise-from-video"
+    },
+    {
+      "name": "Aumentar resolução",
+      "description": "",
+      "url": "https://vmake.ai/pt/video-upscaler"
+    },
+    {
+      "name": "Gerador de vídeos com IA",
+      "description": "",
+      "url": "https://vmake.ai/pt/ai-video-generator"
+    },
+    {
+      "name": "Aprimorador de imagem",
+      "description": "",
+      "url": "https://vmake.ai/pt/image-enhancer"
+    },
+    {
+      "name": "Gerador de imagens com IA",
+      "description": "",
+      "url": "https://vmake.ai/pt/ai-image-generator"
+    },
+    {
+      "name": "Thumbnail de IA",
+      "description": "",
+      "url": "https://vmake.ai/pt/ai-thumbnail-maker"
+    },
+    {
+      "name": "Removedor de marcas d'água Sora",
+      "description": "",
+      "url": "https://vmake.ai/pt/sora-watermark-remover"
+    },
+    {
+      "name": "Removedor de marcas d'água do Gemini",
+      "description": "",
+      "url": "https://vmake.ai/pt/gemini-watermark-remover"
+    },
+    {
+      "name": "Removedor de marcas d'água do Kling",
+      "description": "",
+      "url": "https://vmake.ai/pt/kling-watermark-remover"
+    },
+    {
+      "name": "Removedor de marca d'água do Nano Banana",
+      "description": "",
+      "url": "https://vmake.ai/pt/nano-banana-watermark-remover"
+    },
+    {
+      "name": "Moda",
+      "description": "",
+      "url": "https://vmake.ai/pt/fashion-industry-solution"
+    },
+    {
+      "name": "Beleza",
+      "description": "",
+      "url": "https://vmake.ai/pt/beauty-industry-solution"
+    },
+    {
+      "name": "E-commerce",
+      "description": "",
+      "url": "https://vmake.ai/pt/ecommerce"
+    },
+    {
+      "name": "Mercado imobiliário",
+      "description": "",
+      "url": "https://vmake.ai/pt/real-estate"
+    },
+    {
+      "name": "Criar vídeos com IA",
+      "description": "",
+      "url": "https://vmake.ai/pt/ai-video-generator"
+    },
+    {
+      "name": "Melhorar a qualidade do vídeo",
+      "description": "",
+      "url": "https://vmake.ai/pt/video-enhancer"
+    },
+    {
+      "name": "Aprimorar vídeos em lote",
+      "description": "",
+      "url": "https://vmake.ai/pt/batch-video-upscaling-tool"
+    },
+    {
+      "name": "Novidades",
+      "description": "",
+      "url": "https://vmake.ai/pt/updates"
+    },
+    {
+      "name": "Blog",
+      "description": "",
+      "url": "https://vmake.ai/blog"
+    },
+    {
+      "name": "Programa de Afiliados",
+      "description": "",
+      "url": "https://vmake.ai/pt/vmake-affiliate-program"
+    },
+    {
+      "name": "API",
+      "description": "",
+      "url": "https://vmake.ai/pt/developers"
+    },
+    {
+      "name": "Baixar aplicativo",
+      "description": "",
+      "url": "https://vmake.ai/pt/mobile-solution"
+    },
+    {
+      "name": "Entrar",
+      "description": "",
+      "url": null
+    },
+    {
+      "name": "Iniciar",
+      "description": "",
+      "url": "https://vmake.ai/pt/workspace"
+    },
+    {
+      "name": "Fazer upgrade",
+      "description": "",
+      "url": "https://vmake.ai/pricing"
+    },
+    {
+      "name": "Agent",
+      "description": "",
+      "url": null
+    },
+    {
+      "name": "Geração de vídeo",
+      "description": "Seedance 2.5",
+      "url": null
+    },
+    {
+      "name": "Geração de imagem",
+      "description": "",
+      "url": null
+    },
+    {
+      "name": "Enviar",
+      "description": "",
+      "url": null
+    },
+    {
+      "name": "Estilo",
+      "description": "",
+      "url": null
+    },
+    {
+      "name": "Produto",
+      "description": "",
+      "url": null
+    },
+    {
+      "name": "Criar",
+      "description": "",
+      "url": null
+    },
+    {
+      "name": "🔥 Hot",
+      "description": "",
+      "url": "https://vmake.ai/pt/video-watermark-remover/upload"
+    },
+    {
+      "name": "Tradutor de vídeo",
+      "description": "",
+      "url": "https://vmake.ai/pt/video-translator/editor"
+    },
+    {
+      "name": "Vídeo de avatar com IA",
+      "description": "",
+      "url": "https://vmake.ai/pt/ai-avatar/create"
+    },
+    {
+      "name": "Apresentação de produto",
+      "description": "",
+      "url": "https://vmake.ai/pt/product-video/create"
+    },
+    {
+      "name": "Troca de rosto com IA",
+      "description": "",
+      "url": "https://vmake.ai/pt/face-swap/create"
+    },
+    {
+      "name": "Redimensionador com IA",
+      "description": "",
+      "url": "https://vmake.ai/pt/ai-video-resizer/create"
+    },
+    {
+      "name": "Reiluminação com IA",
+      "description": "",
+      "url": "https://vmake.ai/pt/ai-video-relight/create"
+    },
+    {
+      "name": "Gravador de tela online",
+      "description": "Grátis por tempo limitado",
+      "url": null
+    },
+    {
+      "name": "Grátis por tempo limitado",
+      "description": "",
+      "url": "https://vmake.ai/pt/whiteboard"
+    },
+    {
+      "name": "Thumbnail Maker com IA",
+      "description": "",
+      "url": "https://vmake.ai/pt/ai-thumbnail-maker/create"
+    },
+    {
+      "name": "Legendas automáticas",
+      "description": "",
+      "url": "https://vmake.ai/pt/workspace"
+    },
+    {
+      "name": "Gerador de frases de efeito com IA",
+      "description": "",
+      "url": "https://vmake.ai/pt/hook-generator/create"
+    },
+    {
+      "name": "Redutor de ruído",
+      "description": "",
+      "url": "https://vmake.ai/pt/noise-reduction/upload"
+    },
+    {
+      "name": "Vídeo e áudio para texto",
+      "description": "",
+      "url": "https://vmake.ai/pt/video-and-audio-to-text/upload"
+    },
+    {
+      "name": "Featured",
+      "description": "",
+      "url": null
+    },
+    {
+      "name": "Estilo UGC",
+      "description": "",
+      "url": null
+    },
+    {
+      "name": "Halloween",
+      "description": "",
+      "url": null
+    },
+    {
+      "name": "Produto em mãos",
+      "description": "",
+      "url": null
+    },
+    {
+      "name": "Vídeo de gancho de IA",
+      "description": "",
+      "url": null
+    },
+    {
+      "name": "Fashion",
+      "description": "",
+      "url": null
+    },
+    {
+      "name": "História",
+      "description": "",
+      "url": null
+    },
+    {
+      "name": "Copa do Mundo",
+      "description": "",
+      "url": null
+    },
+    {
+      "name": "Avatares de ações",
+      "description": "",
+      "url": null
+    },
+    {
+      "name": "HOT",
+      "description": "Guardião cavaleiro gatinho - Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Experimente agora",
+      "description": "",
+      "url": null
+    },
+    {
+      "name": "Assalto de doces ou travessuras",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "NEW",
+      "description": "Inesquecível 24 - Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Review de produto",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Desembalagem",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Apresentação do produto",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Podcast",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Produto UGC de Halloween",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Canto Assustador UGC",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Moda de guindaste de Halloween",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Revelação de batom de Halloween",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Maquiagem assustadora UGC",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Voo de produto assombrado",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Halloween GRWM",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "UGC de produto doméstico",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Prova de moda",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "UGC de beleza",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Utensílios de cozinha UGC",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Produto eletrônico UGC",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Ferramenta de beleza UGC",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "História do fundador de beleza",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Maleta",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Estúdio de beleza editorial",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Cidade dos sonhos de beleza",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Hiper movimento",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "UGC de desembalagem de beleza",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Beleza antes e depois UGC",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Pista da cidade",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Transição de roupa no elevador",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Streetwear",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Filme OOTD",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Mão gigante fantasiada",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Drama familiar de gema",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Retorno dramático de pet",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Novela",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Meme de pet",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Lupa",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Drama de frutas",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Ilha do amor",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Corrida pelo gol",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Cachorro de guarda",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Corrida",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Invador de futebol",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Dia de jogo com paraquedas",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Entrega de outro mundo",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Leonardo - Profissional de saúde",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Ana - Influenciadora de beleza",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Maria - Papo sobre carros",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Sophia - Coach de carreira",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Vicente - Personal trainer",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Camila - Criadora de conteúdo de beleza",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Pedro - Dicas de conteúdo",
+      "description": "Experimente agora",
+      "url": null
+    },
+    {
+      "name": "Voltar ao topo",
+      "description": "",
+      "url": null
+    }
+  ],
+  "sidebarLinks": [
+    {
+      "text": "Criar vídeo para redes",
+      "href": "https://vmake.ai/pt/agent"
+    },
+    {
+      "text": "Início",
+      "href": "https://vmake.ai/pt/workspace"
+    },
+    {
+      "text": "Removedor de vídeo e imagem",
+      "href": "https://vmake.ai/pt/video-watermark-remover/upload"
+    },
+    {
+      "text": "Aprimorador de vídeo e imagem",
+      "href": "https://vmake.ai/pt/video-enhancer/upload"
+    },
+    {
+      "text": "Todas as ferramentas",
+      "href": "https://vmake.ai/pt/all-tools"
+    },
+    {
+      "text": "Histórico",
+      "href": "https://vmake.ai/pt/projects-records"
+    },
+    {
+      "text": "Preços",
+      "href": "https://vmake.ai/pt/pricing"
+    },
+    {
+      "text": "Gerador de vídeo UGC",
+      "href": "https://vmake.ai/pt/ugc-video"
+    },
+    {
+      "text": "Recriar vídeo",
+      "href": "https://vmake.ai/pt/clone-viral-video"
+    },
+    {
+      "text": "Vídeo de avatar IA",
+      "href": "https://vmake.ai/pt/ai-avatar"
+    },
+    {
+      "text": "Vitrine de produto",
+      "href": "https://vmake.ai/pt/product-video"
+    },
+    {
+      "text": "Gerador de gancho",
+      "href": "https://vmake.ai/pt/visual-hook"
+    },
+    {
+      "text": "Legenda automática",
+      "href": "https://vmake.ai/pt/auto-generated-captions"
+    },
+    {
+      "text": "Removedor de marca d'água",
+      "href": "https://vmake.ai/pt/video-watermark-remover"
+    },
+    {
+      "text": "Aprimorador de vídeo",
+      "href": "https://vmake.ai/pt/video-enhancer"
+    },
+    {
+      "text": "Removedor de fundo",
+      "href": "https://vmake.ai/pt/video-background-remover"
+    },
+    {
+      "text": "Remover texto",
+      "href": "https://vmake.ai/pt/delete-text-from-video"
+    },
+    {
+      "text": "Remover ruído",
+      "href": "https://vmake.ai/pt/remove-noise-from-video"
+    },
+    {
+      "text": "Aumentar resolução",
+      "href": "https://vmake.ai/pt/video-upscaler"
+    },
+    {
+      "text": "Gerador de vídeos com IA",
+      "href": "https://vmake.ai/pt/ai-video-generator"
+    },
+    {
+      "text": "Aprimorador de imagem",
+      "href": "https://vmake.ai/pt/image-enhancer"
+    },
+    {
+      "text": "Gerador de imagens com IA",
+      "href": "https://vmake.ai/pt/ai-image-generator"
+    },
+    {
+      "text": "Thumbnail de IA",
+      "href": "https://vmake.ai/pt/ai-thumbnail-maker"
+    },
+    {
+      "text": "Removedor de marcas d'água Sora",
+      "href": "https://vmake.ai/pt/sora-watermark-remover"
+    },
+    {
+      "text": "Removedor de marcas d'água do Gemini",
+      "href": "https://vmake.ai/pt/gemini-watermark-remover"
+    },
+    {
+      "text": "Removedor de marcas d'água do Kling",
+      "href": "https://vmake.ai/pt/kling-watermark-remover"
+    },
+    {
+      "text": "Removedor de marca d'água do Nano Banana",
+      "href": "https://vmake.ai/pt/nano-banana-watermark-remover"
+    },
+    {
+      "text": "Moda",
+      "href": "https://vmake.ai/pt/fashion-industry-solution"
+    },
+    {
+      "text": "Beleza",
+      "href": "https://vmake.ai/pt/beauty-industry-solution"
+    },
+    {
+      "text": "E-commerce",
+      "href": "https://vmake.ai/pt/ecommerce"
+    },
+    {
+      "text": "Mercado imobiliário",
+      "href": "https://vmake.ai/pt/real-estate"
+    },
+    {
+      "text": "Criar vídeos com IA",
+      "href": "https://vmake.ai/pt/ai-video-generator"
+    },
+    {
+      "text": "Melhorar a qualidade do vídeo",
+      "href": "https://vmake.ai/pt/video-enhancer"
+    },
+    {
+      "text": "Aprimorar vídeos em lote",
+      "href": "https://vmake.ai/pt/batch-video-upscaling-tool"
+    },
+    {
+      "text": "Novidades",
+      "href": "https://vmake.ai/pt/updates"
+    },
+    {
+      "text": "Blog",
+      "href": "https://vmake.ai/blog"
+    },
+    {
+      "text": "Programa de Afiliados",
+      "href": "https://vmake.ai/pt/vmake-affiliate-program"
+    },
+    {
+      "text": "API",
+      "href": "https://vmake.ai/pt/developers"
+    },
+    {
+      "text": "Baixar aplicativo",
+      "href": "https://vmake.ai/pt/mobile-solution"
+    },
+    {
+      "text": "Iniciar",
+      "href": "https://vmake.ai/pt/workspace"
+    }
+  ]
+}

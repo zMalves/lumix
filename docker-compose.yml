@@ -1,0 +1,18 @@
+services:
+  lumix-studio:
+    build: .
+    container_name: lumix-studio
+    restart: unless-stopped
+    ports:
+      - "3334:3333"
+    environment:
+      - PORT=3333
+      - NODE_ENV=production
+      - PYTHON_BIN=python3
+      - FFMPEG_BIN=ffmpeg
+      - YTDLP_BIN=/usr/local/bin/yt-dlp
+    volumes:
+      - ./videos:/app/videos
+      - ./.env:/app/.env
+      - ./data:/app/data
+

@@ -1,0 +1,100 @@
+# ============================================================
+# Segredos e sessões (NUNCA versionar)
+# ============================================================
+.env
+.env.*
+!.env.example
+*.env
+vmake_auth.json
+.vmake_profile/
+data/youtube_channels.json
+data/*token*
+*.pem
+*.key
+
+# ============================================================
+# Scripts com credenciais escritas no código (ficam só na máquina local)
+# Migrar para o .env antes de versionar.
+# ============================================================
+scripts/auth_youtube.js
+scripts/deploy_pipe.js
+scripts/deploy_to_server.js
+scripts/move_to_hd.js
+scripts/ssh_helper.js
+scripts/ssh_inspect.js
+scripts/ssh_ports.js
+scripts/ssh_stream_deploy.js
+scripts/sync_server_fix.js
+scripts/sync_update_server.js
+test_vmake_auth.js
+
+# ============================================================
+# Produção de vídeo: mídia e projetos gerados
+# ============================================================
+videos/
+screenshots/
+assets/
+*.mp4
+*.mov
+*.mp3
+*.wav
+*.m4a
+*.ogg
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.ass
+*.srt
+
+# Estado local da fila e índices gerados em tempo de execução
+videos/production_queue.json
+dashboard/**/*.cache.json
+
+# ============================================================
+# Ferramentas binárias e dependências
+# ============================================================
+tools/*.exe
+node_modules/
+vmake-sdk/extracted/
+vmake-sdk/*.whl
+vmake-sdk/wheel.zip
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# ============================================================
+# Playwright / testes / logs
+# ============================================================
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+*.log
+test_*.mp4
+test_*.jpg
+
+# ============================================================
+# Bancos e arquivos de cookies/perfil do navegador
+# ============================================================
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.pma
+*.baf
+*.baj
+*.journal
+*.dat
+Cookies
+Login Data
+Web Data
+
+# ============================================================
+# Sistema
+# ============================================================
+Thumbs.db
+desktop.ini
+.DS_Store

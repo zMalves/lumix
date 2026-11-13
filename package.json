@@ -1,0 +1,33 @@
+{
+  "name": "lumix-studio",
+  "version": "2.0.0",
+  "description": "LUMIX — AI Video Studio (Automated Pipeline for Viral Shorts, Reels & TikTok)",
+  "main": "dashboard/server.js",
+  "scripts": {
+    "start": "node dashboard/server.js",
+    "dashboard": "node dashboard/server.js",
+    "autopilot": "node scripts/auto_pilot_pipeline.js"
+  },
+  "keywords": [
+    "lumix",
+    "ai-video",
+    "shorts",
+    "reels",
+    "tiktok",
+    "automation",
+    "voicestudio",
+    "vmake"
+  ],
+  "author": "LUMIX Studio",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^26.6.5",
+    "ssh2": "^1.17.0"
+  },
+  "dependencies": {
+    "ali-oss": "^6.23.0",
+    "dotenv": "^18.0.9"
+  }
+}

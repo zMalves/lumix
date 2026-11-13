@@ -1,0 +1,1627 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LUMIX — AI Video Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=2.8.0">
+</head>
+<body>
+  <!-- Header Principal LUMIX -->
+  <header class="app-header">
+    <div class="logo-area" onclick="switchTab('tab-search')">
+      <div class="logo-symbol">
+        <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="lumixLogoGrad" x1="2" y1="4" x2="30" y2="28" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#4f46e5" />
+              <stop offset="100%" stop-color="#7c3aed" />
+            </linearGradient>
+          </defs>
+          <path d="M6 4h7l-5 11h9l-12 13 3-9H4L6 4z" fill="url(#lumixLogoGrad)"/>
+        </svg>
+      </div>
+      <div class="logo-text-group">
+        <div class="logo-title">LUMIX</div>
+        <div class="logo-subtitle">STUDIO</div>
+      </div>
+    </div>
+
+    <!-- Status e Ações Rápidas no Header -->
+    <div style="display:flex; align-items:center; gap:0.75rem;">
+      <!-- Toggle Global de Música de Fundo -->
+      <button type="button" id="header-music-toggle" class="header-music-btn active" title="Trilha sonora de fundo (Ogryzek) para novos vídeos (Clique para ativar/desativar por padrão)" onclick="toggleGlobalMusic()">
+        <span class="music-icon">🎵</span>
+        <span class="music-text">Música: <strong id="header-music-status">ON</strong></span>
+      </button>
+
+      <a id="header-youtube-btn" href="/api/auth/youtube/login" title="Gerenciar canais do YouTube" class="btn-secondary btn-sm" style="color: #dc2626; border-color: #fecaca; background: #fef2f2; text-decoration:none;">
+        <svg style="width:14px;height:14px;fill:currentColor;" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+        <span id="header-youtube-text">YouTube</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Layout Principal: Sidebar de Menus + Coluna Única de Conteúdo -->
+  <div class="main-layout">
+    <!-- Sidebar: Navegação Principal -->
+    <aside class="sidebar">
+      <div class="sidebar-nav-header">
+        <span class="nav-section-title">Menu Principal</span>
+      </div>
+
+      <nav class="sidebar-nav-menu">
+        <button class="nav-item-btn active" data-tab="tab-search" id="menu-btn-search">
+          <span class="nav-item-icon">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </span>
+          <span class="nav-item-text">Pesquisa</span>
+        </button>
+
+        <button class="nav-item-btn" data-tab="tab-queue" id="menu-btn-queue">
+          <span class="nav-item-icon">
+            <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </span>
+          <span class="nav-item-text">Fila</span>
+          <span class="queue-badge-pill" id="nav-queue-count" style="display:none; background: var(--color-ultraviolet-key); color: var(--color-void-canvas); padding: 1px 7px; border-radius: var(--radius-pill); font-size: 0.7rem; font-weight: 700; margin-left: auto;">0</span>
+        </button>
+
+        <button class="nav-item-btn" data-tab="tab-projects" id="menu-btn-projects">
+          <span class="nav-item-icon">
+            <svg viewBox="0 0 24 24"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
+          </span>
+          <span class="nav-item-text">Projetos</span>
+          <span class="badge-count" id="projects-count" style="margin-left: auto;">0</span>
+        </button>
+
+        <button class="nav-item-btn" data-tab="tab-youtube" id="menu-btn-youtube">
+          <span class="nav-item-icon" style="color: #ff3333;">
+            <svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px;"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+          </span>
+          <span class="nav-item-text">YouTube</span>
+          <span class="badge-count" id="nav-youtube-count" style="margin-left: auto; display:none; background:rgba(255,51,51,0.15); color:#ff5555;">0</span>
+        </button>
+
+        <button class="nav-item-btn" data-tab="tab-settings" id="menu-btn-settings">
+          <span class="nav-item-icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </span>
+          <span class="nav-item-text">Configurações</span>
+        </button>
+      </nav>
+    </aside>
+
+    <!-- Conteúdo Principal em Coluna Única -->
+    <main class="content-area">
+
+
+      <!-- ABA 1: PESQUISAR E BAIXAR SHORTS -->
+      <section class="tab-content active" id="tab-search">
+        <div class="card search-box">
+          <div class="card-header">
+            <div class="header-left">
+              <span class="card-step-badge">Trend Radar</span>
+              <h2>Explorar Shorts Virais no YouTube</h2>
+            </div>
+          </div>
+          <p class="section-desc">Monitore e capture conteúdos de alta tração validados por métricas para adaptar no pipeline LUMIX.</p>
+
+          <!-- BARRA DE NICHOS E TAGS RÁPIDAS (1-CLICK SEARCH) -->
+          <div class="search-quick-tags-container">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.65rem; flex-wrap: wrap; gap: 0.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 0.78rem; font-weight: 700; color: var(--color-frost-white); letter-spacing: 0.05em; text-transform: uppercase; font-family: var(--font-mono);">⚡ English Viral Niches & Tags:</span>
+                <span style="font-size: 0.72rem; color: var(--color-ash-text);">Clique para buscar vídeos originais em inglês em 1-Click</span>
+              </div>
+            </div>
+
+            <div class="search-tags-groups" style="display: flex; flex-direction: column; gap: 0.5rem;">
+              <!-- Group: Movies -->
+              <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
+                <span style="font-size: 0.72rem; font-weight: 600; color: var(--color-fog-text); min-width: 65px;">Cinema:</span>
+                <button type="button" class="search-tag-chip active" data-tag="movierecap">movierecap</button>
+                <button type="button" class="search-tag-chip" data-tag="movie recap">movie recap</button>
+                <button type="button" class="search-tag-chip" data-tag="film recap">film recap</button>
+                <button type="button" class="search-tag-chip" data-tag="movie clips">movie clips</button>
+                <button type="button" class="search-tag-chip" data-tag="movie scene">movie scene</button>
+              </div>
+
+              <!-- Group: Facts -->
+              <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
+                <span style="font-size: 0.72rem; font-weight: 600; color: var(--color-fog-text); min-width: 65px;">Fatos:</span>
+                <button type="button" class="search-tag-chip" data-tag="mind blowing facts">mind blowing facts</button>
+                <button type="button" class="search-tag-chip" data-tag="facts you didnt know">facts you didnt know</button>
+                <button type="button" class="search-tag-chip" data-tag="did you know">did you know</button>
+                <button type="button" class="search-tag-chip" data-tag="daily facts">daily facts</button>
+                <button type="button" class="search-tag-chip" data-tag="life saving facts">life saving facts</button>
+              </div>
+
+              <!-- Group: Mystery -->
+              <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
+                <span style="font-size: 0.72rem; font-weight: 600; color: var(--color-fog-text); min-width: 65px;">Mistério:</span>
+                <button type="button" class="search-tag-chip" data-tag="scary stories">scary stories</button>
+                <button type="button" class="search-tag-chip" data-tag="creepy facts">creepy facts</button>
+                <button type="button" class="search-tag-chip" data-tag="disturbing facts">disturbing facts</button>
+                <button type="button" class="search-tag-chip" data-tag="unsolved mysteries">unsolved mysteries</button>
+                <button type="button" class="search-tag-chip" data-tag="dark history">dark history</button>
+                <button type="button" class="search-tag-chip" data-tag="dark psychology">dark psychology</button>
+              </div>
+
+              <!-- Group: Science -->
+              <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
+                <span style="font-size: 0.72rem; font-weight: 600; color: var(--color-fog-text); min-width: 65px;">Ciência:</span>
+                <button type="button" class="search-tag-chip" data-tag="science facts">science facts</button>
+                <button type="button" class="search-tag-chip" data-tag="space facts">space facts</button>
+                <button type="button" class="search-tag-chip" data-tag="crazy experiments">crazy experiments</button>
+                <button type="button" class="search-tag-chip" data-tag="how it works">how it works</button>
+                <button type="button" class="search-tag-chip" data-tag="weird science">weird science</button>
+              </div>
+            </div>
+          </div>
+
+          <form id="form-search" class="search-form">
+            <!-- Linha 1: Palavra-chave, Data e Visualizações -->
+            <div class="search-grid-row-1">
+              <div class="form-group">
+                <label for="search-query">Palavra-chave ou Nicho (em Inglês):</label>
+                <input type="text" id="search-query" placeholder="Ex: movierecap, mind blowing facts, scary stories, dark history..." value="movierecap" required>
+              </div>
+
+              <div class="form-group">
+                <label for="search-date">Janela de Publicação:</label>
+                <select id="search-date">
+                  <option value="any">Qualquer data</option>
+                  <option value="today">Últimas 24 horas</option>
+                  <option value="week">Última semana (7 dias)</option>
+                  <option value="month" selected>Último mês (30 dias)</option>
+                  <option value="3months">Últimos 3 meses</option>
+                  <option value="year">Último ano</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="search-views">Filtro de Visualizações:</label>
+                <select id="search-views">
+                  <option value="500000" selected>+500.000 visualizações</option>
+                  <option value="1000000">+1.000.000 visualizações</option>
+                  <option value="2000000">+2.000.000 visualizações</option>
+                  <option value="5000000">+5.000.000 visualizações</option>
+                  <option value="100000">+100.000 visualizações</option>
+                  <option value="0">Qualquer visualização</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Linha 2: Filtro de Já Feitos, Duração e Limite -->
+            <div class="search-grid-row-2">
+              <div class="form-group">
+                <label for="search-filter-existing">Vídeos Já Produzidos:</label>
+                <select id="search-filter-existing">
+                  <option value="hide" selected>Pular vídeos já produzidos</option>
+                  <option value="show">Mostrar todos</option>
+                  <option value="only">Apenas vídeos já produzidos</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="search-duration-min">Duração Mínima:</label>
+                <select id="search-duration-min">
+                  <option value="0" selected>Sem mínimo</option>
+                  <option value="30">Acima de 30s</option>
+                  <option value="60">Acima de 1m</option>
+                  <option value="90">Acima de 1:30</option>
+                  <option value="120">Acima de 2m</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="search-duration-max">Duração Máxima:</label>
+                <select id="search-duration-max">
+                  <option value="0" selected>Sem máximo (até 3m)</option>
+                  <option value="30">Abaixo de 30s</option>
+                  <option value="60">Abaixo de 1m</option>
+                  <option value="90">Abaixo de 1:30</option>
+                  <option value="120">Abaixo de 2m</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="search-limit">Quantidade de Vídeos:</label>
+                <select id="search-limit">
+                  <option value="6">6 vídeos</option>
+                  <option value="10" selected>10 vídeos</option>
+                  <option value="20">20 vídeos</option>
+                  <option value="30">30 vídeos</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="search-bottom-bar" style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--glass-border);">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <button type="submit" class="btn-primary" id="btn-submit-search" style="font-size: 0.95rem; padding: 0.75rem 1.75rem; font-weight: 700;">
+                  Buscar Vídeos Virais
+                </button>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">Shorts filtrados e priorizados com mais de 1M de visualizações</span>
+              </div>
+
+              <!-- Linha de Entrada Direta de URL de Shorts -->
+              <div class="direct-link-card" style="display: flex; align-items: center; gap: 0.75rem; background: var(--color-obsidian-surface); border: 1px solid var(--color-carbon-border); padding: 0.75rem 1rem; border-radius: var(--radius-md); flex-wrap: wrap;">
+                <span style="font-size: 0.8rem; font-family: var(--font-mono); font-weight: 600; color: var(--color-ultraviolet-key); white-space: nowrap; display: flex; align-items: center; gap: 0.4rem; letter-spacing: 0.1em; text-transform: uppercase;">
+                  <svg style="width:14px;height:14px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                  Link Direto:
+                </span>
+                <input type="text" id="direct-url" placeholder="Cole o link do YouTube Shorts, Instagram Reel ou TikTok (ex: https://www.instagram.com/reel/...)" style="flex: 1; min-width: 260px; font-size: 0.85rem;">
+                <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                  <button type="button" class="btn-primary btn-sm" id="btn-direct-queue" style="display:inline-flex;align-items:center;gap:0.35rem;">
+                    <svg style="width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none;" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Adicionar à Fila
+                  </button>
+                  <button type="button" class="btn-secondary btn-sm" id="btn-direct-download" style="display:inline-flex;align-items:center;gap:0.35rem;">
+                    <svg style="width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none;" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Apenas Baixar
+                  </button>
+                  <button type="button" class="btn-primary btn-autopilot btn-sm" id="btn-direct-autopilot" style="display:inline-flex;align-items:center;gap:0.35rem;">
+                    <svg style="width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none;" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    Auto-Pilot Agora
+                  </button>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- Indicador de busca / Resultados -->
+        <div id="search-loading" class="loading-box hidden">
+          <div class="spinner"></div>
+          <p>Mapeando os conteúdos de maior tração com as métricas filtradas...</p>
+        </div>
+
+        <div id="search-results-area" class="search-results-area hidden">
+          <div class="results-header">
+            <h3 id="results-count-title">0 Shorts Encontrados</h3>
+            <span class="results-hint">Selecione "Baixar" ou "⚡ Auto-Pilot" para iniciar a esteira</span>
+          </div>
+
+          <div class="results-grid" id="results-grid">
+            <!-- Cards de vídeos renderizados dinamicamente -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ABA: FILA DE PRODUÇÃO AUTOMÁTICA -->
+      <section class="tab-content" id="tab-queue">
+        <div class="card" style="margin-bottom: 1.5rem;">
+          <div class="card-header" style="align-items: center;">
+            <div class="header-left">
+              <span class="card-step-badge">Worker Engine</span>
+              <h2>Fila Automática de Produção</h2>
+            </div>
+            <div class="header-actions" style="display: flex; gap: 0.75rem; align-items: center;">
+              <span id="queue-status-indicator" class="status-pill online">
+                <span class="status-dot"></span>
+                <span id="queue-status-text">Fila Pronta</span>
+              </span>
+              <button class="btn-secondary btn-sm" id="btn-clear-queue-history" title="Limpar histórico de vídeos finalizados" style="display:inline-flex; align-items:center; gap:0.35rem;">
+                <svg style="width:13px;height:13px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                Limpar Concluídos
+              </button>
+            </div>
+          </div>
+          <p class="section-desc">
+            Adicione vídeos diretamente por link ou a partir da pesquisa. O LUMIX processa cada vídeo sequencialmente em segundo plano (Download, VMake, Whisper, MiniMax, Cortes, Legendas ASS, Master 9:16 e Copys Virais), permitindo produzir dezenas de conteúdos no piloto automático.
+          </p>
+
+          <!-- Seção de Entrada Direta de Links na Fila -->
+          <div class="direct-link-card" style="margin-top: 1.25rem; display: flex; align-items: center; gap: 0.75rem; background: var(--color-obsidian-surface); border: 1px solid var(--color-carbon-border); padding: 0.85rem 1.1rem; border-radius: var(--radius-md); flex-wrap: wrap;">
+            <span style="font-size: 0.8rem; font-family: var(--font-mono); font-weight: 700; color: var(--color-ultraviolet-key); white-space: nowrap; display: flex; align-items: center; gap: 0.4rem; letter-spacing: 0.08em; text-transform: uppercase;">
+              <svg style="width:15px;height:15px;stroke:currentColor;stroke-width:2;fill:none;" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              Adicionar por Link:
+            </span>
+            <input type="text" id="queue-direct-url" placeholder="Cole o link do YouTube Shorts, Instagram Reel ou TikTok (ex: https://www.instagram.com/reel/...)" style="flex: 1; min-width: 280px; font-size: 0.88rem; padding: 0.65rem 0.9rem; background: #ffffff; border: 1px solid var(--color-border-input); border-radius: var(--radius-inputs); color: var(--color-frost-white);">
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+              <button type="button" class="btn-primary btn-sm" id="btn-queue-direct-add" style="display:inline-flex;align-items:center;gap:0.4rem;padding:0.65rem 1.1rem;font-weight:700;">
+                <svg style="width:14px;height:14px;stroke:currentColor;stroke-width:2;fill:none;" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                + Enviar para Fila
+              </button>
+              <button type="button" class="btn-primary btn-autopilot btn-sm" id="btn-queue-direct-autopilot" style="display:inline-flex;align-items:center;gap:0.4rem;padding:0.65rem 1.1rem;">
+                <svg style="width:14px;height:14px;stroke:currentColor;stroke-width:2;fill:none;" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                Auto-Pilot Imediato
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARD: VÍDEO ATUALMENTE EM PROCESSAMENTO -->
+        <div class="card current-job-card" id="queue-active-card">
+          <div class="card-header" style="align-items: flex-start; justify-content: space-between; gap: 1rem;">
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; flex: 1; min-width: 0;">
+              <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                <span class="status-pill online" style="font-weight: 600; color: var(--color-ultraviolet-key); border-color: rgba(184, 140, 255, 0.3); display: inline-flex; align-items: center; gap: 0.35rem;">
+                  <svg style="width:12px;height:12px;stroke:currentColor;stroke-width:2;fill:none;" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                  Em Produção (<span id="queue-running-count">0</span>)
+                </span>
+                <span id="queue-active-step" style="font-size: 0.85rem; font-weight: 600; font-family: var(--font-mono); color: var(--color-ultraviolet-key);">Aguardando novo vídeo...</span>
+              </div>
+              <h3 id="queue-active-title" style="margin: 0; font-size: 1.15rem; color: var(--color-frost-white); line-height: 1.4;">Nenhum vídeo em processamento no momento (Fila Ociosa)</h3>
+            </div>
+            <button class="btn-secondary btn-sm" id="btn-cancel-active-job" style="color: var(--color-code-rose); border-color: rgba(249, 38, 114, 0.4); display: none; font-weight: 600; align-items: center; gap: 0.35rem; white-space: nowrap;">
+              <svg style="width:12px;height:12px;stroke:currentColor;stroke-width:2;fill:none;" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+              Cancelar / Pular Vídeo
+            </button>
+          </div>
+
+          <!-- Lista de Vídeos Rodando Simultaneamente em Paralelo -->
+          <div id="queue-running-slots" style="display: none; margin-top: 1rem; flex-direction: column; gap: 0.75rem;"></div>
+
+          <div id="queue-active-body" style="display: none; margin-top: 1.25rem;">
+            <div class="queue-active-grid" style="display: flex; gap: 1.5rem; align-items: flex-start;">
+              <div class="queue-active-thumb-box" style="flex-shrink: 0; width: 140px;">
+                <img id="queue-active-thumb" src="" alt="Thumbnail" style="width: 100%; border-radius: var(--radius-sm); aspect-ratio: 9/16; object-fit: cover; box-shadow: 0 8px 24px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1);">
+              </div>
+              <div class="queue-active-details" style="flex: 1;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                  <span style="font-size: 0.85rem; color: var(--text-secondary);">Progresso Geral do Pipeline</span>
+                  <span id="queue-active-pct" style="font-size: 1.2rem; font-weight: 700; font-family: var(--font-mono); color: var(--color-ultraviolet-key);">0%</span>
+                </div>
+                <div class="queue-progress-bar-bg" style="width: 100%; height: 8px; background: rgba(255,255,255,0.06); border-radius: 9999px; overflow: hidden; margin-bottom: 1.25rem;">
+                  <div id="queue-active-bar" style="width: 0%; height: 100%; background: var(--color-ultraviolet-key); box-shadow: 0 0 12px rgba(184, 140, 255, 0.4); border-radius: 9999px; transition: width 0.4s ease;"></div>
+                </div>
+
+                <div class="queue-steps-mini" style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                  <span class="mini-step-pill" id="qstep-1" style="font-size: 0.72rem; padding: 4px 10px; border-radius: 99px; background: rgba(255,255,255,0.05); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.08);">📥 Download</span>
+                  <span class="mini-step-pill" id="qstep-2" style="font-size: 0.72rem; padding: 4px 10px; border-radius: 99px; background: rgba(255,255,255,0.05); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.08);">🧼 VMake Pro</span>
+                  <span class="mini-step-pill" id="qstep-3" style="font-size: 0.72rem; padding: 4px 10px; border-radius: 99px; background: rgba(255,255,255,0.05); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.08);">🎙️ Whisper</span>
+                  <span class="mini-step-pill" id="qstep-4" style="font-size: 0.72rem; padding: 4px 10px; border-radius: 99px; background: rgba(255,255,255,0.05); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.08);">🌐 Tradução</span>
+                  <span class="mini-step-pill" id="qstep-5" style="font-size: 0.72rem; padding: 4px 10px; border-radius: 99px; background: rgba(255,255,255,0.05); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.08);">🔊 MiniMax</span>
+                  <span class="mini-step-pill" id="qstep-6" style="font-size: 0.72rem; padding: 4px 10px; border-radius: 99px; background: rgba(255,255,255,0.05); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.08);">✂️ Silêncios</span>
+                  <span class="mini-step-pill" id="qstep-7" style="font-size: 0.72rem; padding: 4px 10px; border-radius: 99px; background: rgba(255,255,255,0.05); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.08);">⏱️ Cortes</span>
+                  <span class="mini-step-pill" id="qstep-8" style="font-size: 0.72rem; padding: 4px 10px; border-radius: 99px; background: rgba(255,255,255,0.05); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.08);">💬 Legendas</span>
+                  <span class="mini-step-pill" id="qstep-9" style="font-size: 0.72rem; padding: 4px 10px; border-radius: 99px; background: rgba(255,255,255,0.05); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.08);">✨ 9:16 Render</span>
+                  <span class="mini-step-pill" id="qstep-10" style="font-size: 0.72rem; padding: 4px 10px; border-radius: 99px; background: rgba(255,255,255,0.05); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.08);">📦 Copys Virais</span>
+                </div>
+
+                <details style="margin-top: 1.25rem;">
+                  <summary style="cursor: pointer; font-size: 0.8rem; color: #a78bfa; user-select: none; font-weight: 600;">📄 Ver Terminal do Worker em Tempo Real</summary>
+                  <pre id="queue-active-logs" style="margin-top: 0.5rem; max-height: 180px; overflow-y: auto; background: rgba(5,5,15,0.85); border: 1px solid rgba(255,255,255,0.08); padding: 0.75rem; border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: 0.75rem; color: #a7f3d0; white-space: pre-wrap;"></pre>
+                </details>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DUAS COLUNAS: AGUARDANDO NA FILA vs HISTÓRICO CONCLUÍDOS -->
+        <div class="queue-lists-grid" style="display: grid; grid-template-columns: minmax(280px, 1fr) minmax(360px, 1.8fr); gap: 1.5rem; margin-top: 1.5rem; align-items: start;">
+          <!-- Coluna 1: Aguardando na Fila -->
+          <div class="card">
+            <div class="card-header" style="flex-direction: column; align-items: flex-start; gap: 0.4rem; margin-bottom: 1rem;">
+              <span class="card-step-badge" style="background: rgba(184, 140, 255, 0.1); color: var(--color-ultraviolet-key);">Pendentes</span>
+              <h3 style="font-size: 1.1rem; margin: 0;">Próximos na Fila (<span id="queue-pending-count">0</span>)</h3>
+            </div>
+            <div id="queue-pending-list" class="queue-items-container" style="display: flex; flex-direction: column; gap: 0.75rem; min-height: 80px;">
+              <!-- Renderizado dinamicamente -->
+            </div>
+          </div>
+
+          <!-- Coluna 2: Concluídos & Prontos para Postar -->
+          <div class="card">
+            <div class="card-header" style="flex-direction: column; align-items: flex-start; gap: 0.4rem; margin-bottom: 1rem;">
+              <span class="card-step-badge" style="background: rgba(16, 185, 129, 0.1); color: var(--color-emerald-ok); border-color: rgba(16, 185, 129, 0.3);">Concluídos</span>
+              <h3 style="font-size: 1.1rem; margin: 0;">Histórico de Produção (<span id="queue-completed-count">0</span>)</h3>
+            </div>
+            <div id="queue-completed-list" class="queue-items-container" style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem; min-height: 80px;">
+              <!-- Renderizado dinamicamente -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ABA 2: PIPELINE DO VÍDEO ATIVO -->
+      <section class="tab-content" id="tab-pipeline">
+        <div class="card pipeline-header-card" style="padding: 1.25rem 1.5rem; margin-bottom: 0.5rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:1.25rem; flex-wrap:wrap;">
+            
+            <!-- Esquerda: Tags, Título e Botão Renomear -->
+            <div style="flex:1; min-width:280px; display:flex; flex-direction:column; gap:0.6rem;">
+              <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                <button type="button" class="btn-secondary btn-sm" onclick="switchTab('tab-projects')" style="display:inline-flex; align-items:center; gap:0.4rem; padding: 4px 10px; font-size: 0.76rem; border-radius: var(--radius-pill); color: var(--color-fog-text); font-weight:600;" title="Voltar para a lista de projetos">
+                  <svg style="width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none;" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+                  Voltar aos Projetos
+                </button>
+                <span class="banner-tag">Projeto em Edição</span>
+                <span id="project-id-badge" onclick="copyProjectIdToClipboard()" style="display:none; cursor:pointer; font-family:var(--font-mono); font-size:0.75rem; background:rgba(184, 140, 255, 0.12); color:var(--color-ultraviolet-key); border:1px solid rgba(184, 140, 255, 0.35); padding:3px 10px; border-radius:var(--radius-pill); font-weight:700; transition:all 0.2s;" title="Clique para copiar o ID e o link do vídeo">#ID</span>
+                <div class="project-status-control" id="studio-status-box" style="display:none;">
+                  <span class="status-dot-indicator ready" id="studio-status-dot"></span>
+                  <select class="evervault-select-status" id="select-studio-status">
+                    <option value="in_progress">Em Edição</option>
+                    <option value="ready">Pronto (9:16)</option>
+                    <option value="posted_pt">Postado (PT)</option>
+                    <option value="posted_es">Postado (ESP)</option>
+                    <option value="posted_both">Postado nos 2</option>
+                  </select>
+                </div>
+                <span id="project-scheduled-badge" style="display:none; font-size: 0.72rem; background: rgba(184, 140, 255, 0.1); color: var(--color-ultraviolet-key); border: 1px solid rgba(184, 140, 255, 0.3); padding: 2px 10px; border-radius: var(--radius-pill); font-weight: 500;">Post agendado</span>
+              </div>
+              
+              <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                <h2 id="pipeline-project-title" style="margin: 0; font-size: 1.35rem; font-weight: 700; color: var(--color-frost-white); line-height: 1.3;">Nenhum projeto selecionado</h2>
+                <button class="btn-secondary btn-sm" id="btn-rename-project" title="Renomear título do projeto" style="padding: 4px 10px; font-size: 0.76rem; border-radius: var(--radius-pill); display: inline-flex; align-items: center; gap: 0.35rem;">
+                  <svg style="width:12px;height:12px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                  Renomear
+                </button>
+                <button class="btn-secondary btn-sm" onclick="copyProjectShareUrl()" title="Copiar link com parâmetros deste vídeo para compartilhar" style="padding: 4px 10px; font-size: 0.76rem; border-radius: var(--radius-pill); display: inline-flex; align-items: center; gap: 0.35rem;">
+                  <svg style="width:12px;height:12px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                  Compartilhar Link
+                </button>
+              </div>
+            </div>
+
+            <!-- Direita: Agendamento & Ações -->
+            <div style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;">
+              <!-- Campo Opcional: Data de Postagem -->
+              <div style="display: flex; align-items: center; gap: 0.4rem; background: var(--color-obsidian-surface); border: 1px solid var(--color-carbon-border); padding: 6px 12px; border-radius: var(--radius-pill);" title="Defina uma data e hora para postar este vídeo nas redes sociais">
+                <label for="input-scheduled-date" style="font-size: 0.78rem; font-weight: 600; color: var(--color-fog-text); margin: 0; white-space: nowrap; display: inline-flex; align-items: center; gap: 0.35rem;">
+                  <svg style="width:13px;height:13px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  Postagem:
+                </label>
+                <input type="datetime-local" id="input-scheduled-date" style="background: transparent; border: none; color: var(--color-frost-white); font-size: 0.78rem; padding: 2px 4px; outline: none; font-family: inherit;">
+                <button class="btn-secondary btn-sm" id="btn-save-scheduled-date" title="Salvar data de postagem" style="padding: 3px 8px; font-size: 0.75rem; display:inline-flex; align-items:center;">
+                  <svg style="width:12px;height:12px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                </button>
+                <button class="btn-secondary btn-sm" id="btn-clear-scheduled-date" title="Limpar data agendada" style="padding: 3px 8px; font-size: 0.75rem; color: var(--color-ash-text);">✕</button>
+              </div>
+
+              <button class="btn-primary btn-autopilot" id="btn-run-autopilot-current" style="display:inline-flex; align-items:center; gap:0.4rem;">
+                <svg style="width:14px;height:14px;stroke:currentColor;stroke-width:2;fill:none;" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                Executar Piloto Automático
+              </button>
+              <button class="btn-secondary" id="btn-reprocess-queue" onclick="openRerunModal()" style="color:var(--color-ultraviolet-key); border-color:rgba(184, 140, 255, 0.4); display:inline-flex; align-items:center; gap:0.4rem;" title="Colocar este projeto na fila para refazer inteiro ou a partir de uma etapa">
+                <svg style="width:14px;height:14px;stroke:currentColor;stroke-width:2;fill:none;" viewBox="0 0 24 24"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                Refazer na Fila
+              </button>
+              <button class="btn-secondary" id="btn-delete-project" style="color: var(--color-code-rose); border-color: rgba(249, 38, 114, 0.4); background: rgba(249, 38, 114, 0.08); display:inline-flex; align-items:center; gap:0.4rem;" title="Excluir permanentemente este projeto e todos os seus arquivos do disco">
+                <svg style="width:14px;height:14px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- BARRA DE SUBMENUS POR IDIOMA / ETAPAS -->
+        <div class="studio-lang-bar-container" style="margin-bottom: 1rem;">
+          <div class="studio-lang-bar" style="display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; background:var(--color-obsidian-surface); border:1px solid var(--color-carbon-border); border-radius:var(--radius-cards); padding:0.65rem 1rem;">
+            <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;" id="studio-lang-tabs">
+              <button type="button" class="studio-lang-tab-btn active" data-lang="base" id="lang-tab-base">
+                Geral (Etapas 1-3 + Pacing)
+              </button>
+              <button type="button" class="studio-lang-tab-btn" data-lang="pt" id="lang-tab-pt">
+                Português
+                <span class="lang-status-pill" id="badge-lang-status-pt" style="font-size:0.7rem; padding:2px 8px; border-radius:9999px; background:#f1f5f9; color:#64748b;">Pendente</span>
+              </button>
+            </div>
+            
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+              <button type="button" class="btn-secondary btn-sm" id="btn-add-studio-lang" style="display:inline-flex; align-items:center; gap:0.35rem; color:var(--color-ultraviolet-key); border-color:rgba(184, 140, 255, 0.4);" title="Criar ou gerar este vídeo em outro idioma (ex: Espanhol)">
+                + Novo Idioma
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stepper Visual de Etapas -->
+        <div class="steps-progress-bar" id="studio-steps-progress-bar">
+          <div class="step-indicator" id="step-badge-1"><span class="step-num">1</span> Download</div>
+          <div class="step-arrow">/</div>
+          <div class="step-indicator" id="step-badge-2"><span class="step-num">2</span> Limpeza VMake</div>
+          <div class="step-arrow">/</div>
+          <div class="step-indicator" id="step-badge-3"><span class="step-num">3</span> Transcrição Whisper</div>
+          <div class="step-arrow">/</div>
+          <div class="step-indicator" id="step-badge-4"><span class="step-num">4</span> Roteiro & Tradução</div>
+          <div class="step-arrow">/</div>
+          <div class="step-indicator" id="step-badge-5"><span class="step-num">5</span> Narração Neural</div>
+          <div class="step-arrow">/</div>
+          <div class="step-indicator" id="step-badge-6"><span class="step-num">6</span> Render 9:16 Final</div>
+        </div>
+
+        <!-- GRID DE ETAPAS DO PIPELINE -->
+        <div class="pipeline-grid">
+          
+          <!-- ETAPA 1 & 2: VÍDEOS (ORIGINAL + VMAKE) -->
+          <div class="pipeline-card col-span-2 stage-geral-item">
+            <div class="card-header">
+              <div class="header-left">
+                <span class="card-step-badge">Etapas 1 & 2</span>
+                <h3>Vídeo Original vs Limpeza Inteligente Pro (VMake)</h3>
+              </div>
+              <div class="header-right">
+                <button class="btn-primary" id="btn-run-vmake" style="display:inline-flex; align-items:center; gap:0.4rem;">
+                  <svg style="width:14px;height:14px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><path d="m15 4-3 3-5-5-3 3 5 5-3 3 3 3 3-3 5 5 3-3-5-5 3-3Z"/><line x1="18" y1="20" x2="21" y2="20"/></svg>
+                  Iniciar Remoção VMake (API Oficial)
+                </button>
+              </div>
+            </div>
+
+            <div class="video-compare-grid">
+              <!-- Original -->
+              <div class="video-box">
+                <span class="video-tag">1. original.mp4 (Origem)</span>
+                <video id="player-original" controls preload="metadata"></video>
+                <div class="video-status" id="status-original">Verificando...</div>
+              </div>
+
+              <!-- Sem Marca -->
+              <div class="video-box">
+                <span class="video-tag tag-success">2. sem_marca.mp4 (Limpo)</span>
+                <video id="player-cleaned" controls preload="metadata"></video>
+                <div class="video-status" id="status-cleaned">Pendente</div>
+              </div>
+            </div>
+
+            <!-- Log do VMake em Tempo Real -->
+            <div id="vmake-log-container" class="log-container hidden">
+              <div class="log-header">
+                <span>Console VMake API Oficial</span>
+                <span id="vmake-job-status" class="job-status-running">Processando...</span>
+              </div>
+              <pre id="vmake-log-output" class="log-output"></pre>
+            </div>
+          </div>
+
+          <!-- ETAPA 3: TRANSCRIÇÃO (VOICE STUDIO) -->
+          <div class="pipeline-card stage-geral-item">
+            <div class="card-header">
+              <div class="header-left">
+                <span class="card-step-badge">Etapa 3</span>
+                <h3>Transcrição Original (Faster-Whisper)</h3>
+              </div>
+              <button class="btn-primary" id="btn-run-transcribe" style="display:inline-flex; align-items:center; gap:0.4rem;">
+                <svg style="width:14px;height:14px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+                Transcrever Áudio
+              </button>
+            </div>
+
+            <div class="card-body">
+              <p class="field-hint">Extrai a transcrição exata em inglês frame a frame via Whisper na GPU:</p>
+              <textarea id="text-transcript" class="code-textarea" placeholder="Clique em 'Transcrever Áudio' para obter o texto original..."></textarea>
+              
+              <div class="card-footer-actions" style="display:flex;justify-content:space-between;align-items:center;margin-top:0.75rem;">
+                <span class="save-status" id="save-status-transcript" style="font-size:0.78rem;color:var(--accent-neon);"></span>
+                <button class="btn-secondary btn-sm" id="btn-save-transcript" style="display:inline-flex; align-items:center; gap:0.35rem;">
+                  <svg style="width:12px;height:12px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                  Salvar Roteiro
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ETAPA 4: TRADUÇÃO & ADAPTAÇÃO VIRAL (IDIOMA ATIVO) -->
+          <div class="pipeline-card stage-lang-item">
+            <div class="card-header">
+              <div class="header-left">
+                <span class="card-step-badge">Etapa 4</span>
+                <h3>Storytelling Viral & Fonética (PT-BR)</h3>
+              </div>
+              <button class="btn-primary" id="btn-run-translate" style="display:inline-flex; align-items:center; gap:0.4rem;">
+                <svg style="width:14px;height:14px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                Adaptar para PT-BR
+              </button>
+            </div>
+
+            <div class="card-body">
+              <p class="field-hint">Adaptação com ganchos de retenção, pausas naturais e normalização fonética anti-erros:</p>
+              <textarea id="text-translation" class="code-textarea" placeholder="O roteiro adaptado em Português com números e valores por extenso aparecerá aqui..."></textarea>
+              
+              <div class="card-footer-actions" style="display:flex;justify-content:space-between;align-items:center;margin-top:0.75rem;">
+                <span class="save-status" id="save-status-translation" style="font-size:0.78rem;color:var(--accent-neon);"></span>
+                <button class="btn-secondary btn-sm" id="btn-save-translation" style="display:inline-flex; align-items:center; gap:0.35rem;">
+                  <svg style="width:12px;height:12px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                  Salvar Alterações
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ETAPA EXTRA: CORTES RÍTMICOS NO VÍDEO -->
+          <div class="pipeline-card stage-geral-item">
+            <div class="card-header">
+              <div class="header-left">
+                <span class="card-step-badge">Pacing</span>
+                <h3>Cortes Rítmicos de Retenção Visual</h3>
+              </div>
+              <button class="btn-primary" id="btn-run-cut-video" style="display:inline-flex; align-items:center; gap:0.4rem;">
+                <svg style="width:14px;height:14px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+                Sincronizar Linha de Tempo
+              </button>
+            </div>
+
+            <div class="card-body">
+              <p class="field-hint">Aplica microcortes inteligentes mantendo 3.0s de cena para eliminar tempos mortos e harmonizar com a locução:</p>
+              
+              <div class="video-box" style="margin-top: 0.5rem; max-width: 320px;">
+                <span class="video-tag tag-success">video_cortado.mp4 (Timeline Ajustada)</span>
+                <video id="player-cut" controls preload="metadata"></video>
+                <div class="video-status" id="status-cut">Pendente / Vídeo sem cortes</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ETAPA 5: GERAÇÃO DE VOZ NEURAL (GPU) -->
+          <div class="pipeline-card stage-lang-item">
+            <div class="card-header">
+              <div class="header-left">
+                <span class="card-step-badge">Etapa 5</span>
+                <h3 id="stage-5-title">Voz Neural Expressiva (MiniMax API)</h3>
+              </div>
+              <button class="btn-primary" id="btn-run-tts" style="display:inline-flex; align-items:center; gap:0.4rem;">
+                <svg style="width:14px;height:14px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                Gerar Narração
+              </button>
+            </div>
+
+            <div class="card-body">
+              <div class="voice-config-row" style="display:grid;grid-template-columns:2fr 1fr;gap:0.75rem;margin-bottom:0.75rem;">
+                <div class="form-group">
+                  <label>Voz Neural MiniMax:</label>
+                  <select id="select-voice">
+                    <option value="moss_audio_7eb5eaa1-d18c-11f1-a1a6-e6b4e5387684" selected>Voz Principal Expressiva (moss_audio_7eb5eaa1)</option>
+                    <option value="moss_audio_b3238991-d07d-11f1-886b-068fa2242ec6">Curiosidades Antiga (moss_audio_b3238991)</option>
+                    <option value="speech-02-turbo">MiniMax Padrão (speech-02-turbo)</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label>Velocidade:</label>
+                  <input type="number" id="voice-speed" value="1.3" step="0.05" min="0.8" max="2.0">
+                </div>
+              </div>
+
+              <!-- Controle de Corte de Silêncios Calibrado -->
+              <div class="silence-control-box" style="background: rgba(255, 255, 255, 0.03); border: 1px dashed var(--glass-border-light); border-radius: var(--radius-sm); padding: 0.85rem 1rem; margin-top: 0.75rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+                  <label style="cursor: pointer; display: flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.82rem; color: #f1f5f9;">
+                    <input type="checkbox" id="check-auto-trim-silence" checked style="accent-color: var(--accent-purple); width: 16px; height: 16px;">
+                    Corte Suave & Natural de Silêncios (350ms / 200ms / margem 90ms)
+                  </label>
+                  
+                  <button class="btn-secondary btn-sm" id="btn-run-trim-silence" style="white-space: nowrap; display:inline-flex; align-items:center; gap:0.35rem;">
+                    <svg style="width:12px;height:12px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+                    Higienizar Áudio Agora
+                  </button>
+                </div>
+                <div id="trim-silence-info" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem;">
+                  Preserva micropausas naturais e respirações humanas com margem de segurança nas bordas, sem engolir sílabas ou cortar a voz.
+                </div>
+              </div>
+
+              <div class="audio-player-box" style="margin-top: 1rem;">
+                <label style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);">Trilha de Áudio: <strong>narracao.mp3</strong></label>
+                <audio id="player-audio" controls class="full-width-audio"></audio>
+                <span class="audio-status" id="status-audio" style="font-size:0.75rem;color:var(--text-muted);display:block;margin-top:0.35rem;">Pendente</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ETAPA 6: MONTAGEM ÁUDIO-VÍDEO -->
+          <div class="pipeline-card stage-lang-item">
+            <div class="card-header">
+              <div class="header-left">
+                <span class="card-step-badge">Etapa 6</span>
+                <h3 id="stage-6-title">Montagem & Sincronia (FFmpeg Muxer)</h3>
+              </div>
+              <button class="btn-primary" id="btn-run-merge" style="display:inline-flex; align-items:center; gap:0.4rem;">
+                <svg style="width:14px;height:14px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="3"/><path d="m10 8 6 4-6 4V8z"/></svg>
+                Sincronizar Trilha
+              </button>
+            </div>
+
+            <div class="card-body">
+              <p class="field-hint">Substitui a trilha original pela narração estéreo sincronizada em <code>final.mp4</code>:</p>
+              
+              <div class="video-box final-video-box" style="max-width: 320px; margin: 0.5rem auto;">
+                <video id="player-final" controls preload="metadata"></video>
+                <div class="video-status" id="status-final">Pendente</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ETAPA 7: RENDERIZAÇÃO FINAL 9:16 VERTICAL TELA CHEIA COM LEGENDAS -->
+          <div class="pipeline-card stage-lang-item">
+            <div class="card-header">
+              <div class="header-left">
+                <span class="card-step-badge">Etapa 7</span>
+                <h3 id="stage-7-title">Master Final 9:16 Vertical Full HD</h3>
+              </div>
+              <div style="display:inline-flex; align-items:center; gap:0.75rem;">
+                <label style="display:inline-flex; align-items:center; gap:0.35rem; font-size:0.8rem; font-weight:500; cursor:pointer; color:var(--text-muted);" title="Espelha horizontalmente o vídeo (hflip) para quebrar detecção de frame. Ativado automaticamente por padrão.">
+                  <input type="checkbox" id="chk-hflip" checked style="accent-color:var(--primary); cursor:pointer;">
+                  Espelhar (H-Flip)
+                </label>
+                <button class="btn-primary btn-autopilot" id="btn-run-square-sub" style="display:inline-flex; align-items:center; gap:0.4rem;">
+                  <svg style="width:14px;height:14px;stroke:currentColor;stroke-width:2;fill:none;" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                  Renderizar 9:16 Full HD
+                </button>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <p class="field-hint">Enquadramento vertical Full HD 9:16 (1080x1920) com proteção Anti-Duplicate Hash (Zoom 1.05x, Velocidade 1.03x sincronizada, Variação RGB +2% e FastStart ativo):</p>
+              
+              <div class="video-box final-video-box" style="max-width: 320px; margin: 0.5rem auto;">
+                <span class="video-tag tag-success">video_9x16.mp4 (Formato Vertical 9:16)</span>
+                <video id="player-square-sub" controls preload="metadata"></video>
+                <div class="video-status" id="status-square-sub">Pendente</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ETAPA 8: KIT DE PUBLICAÇÃO & COPYS VIRAIS (TÍTULOS + LEGENDA + HASHTAGS) -->
+          <div class="pipeline-card col-span-2 stage-lang-item" id="card-post-copy">
+            <div class="card-header">
+              <div class="header-left">
+                <span class="card-step-badge">Post Pro</span>
+                <h3 id="stage-8-title">Kit de Publicação Viral & Agendamento</h3>
+              </div>
+              <button class="btn-primary" id="btn-generate-post-copy" style="display:inline-flex; align-items:center; gap:0.4rem;">
+                <svg style="width:14px;height:14px;stroke:currentColor;stroke-width:2;fill:none;" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                Gerar / Regerar Copys
+              </button>
+            </div>
+
+            <div class="card-body">
+              <p class="field-hint">Títulos magnéticos de alto clique (CTR), legenda com gancho persuasivo, CTA para engajamento e hashtags virais prontas para copiar e colar:</p>
+              
+              <div id="post-copy-empty" class="post-copy-empty" style="text-align:center; padding: 2rem 1rem; color: var(--text-muted);">
+                <span>✨ Conclua a renderização ou clique em "⚡ Gerar / Regerar Copys" para criar os títulos e legendas magnéticas para este vídeo.</span>
+              </div>
+
+              <div id="post-copy-content" class="post-copy-content hidden" style="display:flex; flex-direction:column; gap:1.2rem;">
+                
+                <!-- Títulos Virais -->
+                <div class="post-box" style="background: var(--color-obsidian-surface); border: 1px solid var(--color-carbon-border); border-radius: var(--radius-cards); padding: 1.25rem;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.6rem;">
+                    <label style="font-weight:600; font-size:0.85rem; color:var(--color-frost-white); display:flex; align-items:center; gap:0.4rem;">
+                      <svg style="width:14px;height:14px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                      Opções de Títulos (CTR Otimizado):
+                    </label>
+                    <span style="font-size:0.75rem; color:var(--color-ash-text);">Clique para copiar qualquer um</span>
+                  </div>
+                  <div id="post-titles-list" style="display:flex; flex-direction:column; gap:0.5rem;">
+                    <!-- Renderizado dinamicamente -->
+                  </div>
+                </div>
+
+                <!-- Legenda / Descrição para Postagem -->
+                <div class="post-box" style="background: var(--color-obsidian-surface); border: 1px solid var(--color-carbon-border); border-radius: var(--radius-cards); padding: 1.25rem;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.6rem;">
+                    <label style="font-weight:600; font-size:0.85rem; color:var(--color-frost-white); display:flex; align-items:center; gap:0.4rem;">
+                      <svg style="width:14px;height:14px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                      Legenda Completa para Postagem (Gancho + História + CTA):
+                    </label>
+                    <button class="btn-secondary btn-sm" id="btn-copy-caption" style="display:inline-flex; align-items:center; gap:0.35rem;">
+                      <svg style="width:12px;height:12px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      Copiar Legenda
+                    </button>
+                  </div>
+                  <textarea id="post-caption-text" readonly style="width:100%; min-height:100px; background:#ffffff; border:1px solid var(--color-border-input); border-radius:var(--radius-inputs); color:var(--color-frost-white); font-size:0.85rem; line-height:1.6; padding:0.75rem; resize:vertical;"></textarea>
+                </div>
+
+                <!-- Bloco de Hashtags -->
+                <div class="post-box" style="background: var(--color-obsidian-surface); border: 1px solid var(--color-carbon-border); border-radius: var(--radius-cards); padding: 1.25rem;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.6rem;">
+                    <label style="font-weight:600; font-size:0.85rem; color:var(--color-frost-white); display:flex; align-items:center; gap:0.4rem;">
+                      <svg style="width:14px;height:14px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+                      Hashtags Estratégicas:
+                    </label>
+                    <button class="btn-secondary btn-sm" id="btn-copy-hashtags" style="display:inline-flex; align-items:center; gap:0.35rem;">
+                      <svg style="width:12px;height:12px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      Copiar Hashtags
+                    </button>
+                  </div>
+                  <input type="text" id="post-hashtags-text" readonly style="width:100%; background:#ffffff; border:1px solid var(--color-border-input); border-radius:var(--radius-inputs); color:var(--color-ultraviolet-key); font-size:0.85rem; padding:0.6rem 0.75rem; font-weight:600; font-family:var(--font-mono);">
+                </div>
+
+                <!-- Central de Publicação & Agendamento YouTube -->
+                <div class="post-box" style="background: var(--color-obsidian-surface); border: 1px solid rgba(255,51,51,0.35); border-radius: var(--radius-cards); padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem;">
+                  
+                  <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--color-carbon-border); padding-bottom: 0.85rem; flex-wrap:wrap; gap:0.5rem;">
+                    <div style="display:flex; align-items:center; gap:0.6rem;">
+                      <div style="width:34px;height:34px;border-radius:8px;background:rgba(255,51,51,0.15);display:flex;align-items:center;justify-content:center;color:#ff4d4d;">
+                        <svg style="width:20px;height:20px;fill:currentColor;" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                      </div>
+                      <div>
+                        <h4 style="margin:0; font-size:1.05rem; color:var(--color-frost-white); font-weight:700;">Publicação & Agendamento YouTube</h4>
+                        <span style="font-size:0.75rem; color:var(--color-fog-text);">Envio direto de Shorts 9:16 para qualquer canal cadastrado</span>
+                      </div>
+                    </div>
+                    <span id="post-yt-status-badge" style="font-size:0.76rem; font-family:var(--font-mono); color:var(--color-fog-text); background:#f1f5f9; padding:3px 10px; border-radius:var(--radius-pill); border:1px solid var(--color-carbon-border);">Pronto para postar</span>
+                  </div>
+
+                  <!-- Campo 1: Seleção de Canal e Modo de Publicação (Imediato vs Agendado) -->
+                  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                    <div>
+                      <label for="post-yt-channel-select" style="font-size:0.8rem; font-weight:600; color:var(--color-mist-text); display:block; margin-bottom:0.35rem;">Canal de Destino:</label>
+                      <select id="post-yt-channel-select" style="width:100%; font-size:0.86rem; padding:0.65rem; background:#ffffff; border:1px solid var(--color-border-input); border-radius:var(--radius-inputs); color:var(--color-frost-white);">
+                        <option value="">Carregando canais...</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label for="post-yt-privacy-select" style="font-size:0.8rem; font-weight:600; color:var(--color-mist-text); display:block; margin-bottom:0.35rem;">Modo de Envio:</label>
+                      <select id="post-yt-privacy-select" style="width:100%; font-size:0.86rem; padding:0.65rem; background:#ffffff; border:1px solid var(--color-border-input); border-radius:var(--radius-inputs); color:var(--color-frost-white);">
+                        <option value="public" selected>Publicar Agora (Público)</option>
+                        <option value="schedule">Agendar Publicação (Data & Horário)</option>
+                        <option value="unlisted">Não Listado (Apenas com o Link)</option>
+                        <option value="private">Privado (Rascunho)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <!-- Campo Extra Condicional: Data & Hora de Agendamento -->
+                  <div id="post-yt-schedule-row" style="display:none; background:#f8fafc; border:1px dashed var(--color-border-input); border-radius:var(--radius-inputs); padding:0.85rem 1rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
+                      <div>
+                        <label for="post-yt-publish-at" style="font-size:0.8rem; font-weight:700; color:var(--color-ultraviolet-key); display:block; margin-bottom:0.25rem;">Data e Hora do Lançamento:</label>
+                        <span style="font-size:0.75rem; color:var(--color-mist-text);">O YouTube manterá o vídeo privado até o momento exato de publicação.</span>
+                      </div>
+                      <input type="datetime-local" id="post-yt-publish-at" style="font-size:0.85rem; padding:0.6rem 0.8rem; background:#ffffff; border:1px solid var(--color-border-input); border-radius:var(--radius-inputs); color:var(--color-frost-white); font-family:var(--font-mono);">
+                    </div>
+                  </div>
+
+                  <!-- Campo 2: Título do Vídeo (Editável com contador de caracteres) -->
+                  <div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem;">
+                      <label for="post-yt-title-input" style="font-size:0.8rem; font-weight:600; color:var(--color-mist-text);">Título do Short (Máx 100 caracteres):</label>
+                      <span id="post-yt-title-count" style="font-size:0.75rem; color:var(--color-mist-text); font-family:var(--font-mono);">0/100</span>
+                    </div>
+                    <input type="text" id="post-yt-title-input" placeholder="Cole ou edite o título do vídeo aqui..." maxlength="100" style="width:100%; font-size:0.88rem; padding:0.65rem 0.85rem; background:#ffffff; border:1px solid var(--color-border-input); border-radius:var(--radius-inputs); color:var(--color-frost-white); font-weight:500;">
+                  </div>
+
+                  <!-- Campo 3: Descrição Completa (Editável) -->
+                  <div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem;">
+                      <label for="post-yt-desc-input" style="font-size:0.8rem; font-weight:600; color:var(--color-mist-text);">Descrição do Short:</label>
+                      <span style="font-size:0.75rem; color:var(--color-ash-text);">História + Chamada de ação + Links</span>
+                    </div>
+                    <textarea id="post-yt-desc-input" rows="4" placeholder="Cole ou digite a descrição do vídeo aqui..." style="width:100%; font-size:0.85rem; padding:0.75rem; background:#ffffff; border:1px solid var(--color-border-input); border-radius:var(--radius-inputs); color:var(--color-frost-white); line-height:1.6; resize:vertical;"></textarea>
+                  </div>
+
+                  <!-- Campo 4: Tags do YouTube (Separadas por vírgula) -->
+                  <div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem;">
+                      <label for="post-yt-tags-input" style="font-size:0.8rem; font-weight:600; color:var(--color-mist-text);">Tags do YouTube (separadas por vírgula):</label>
+                      <span style="font-size:0.75rem; color:var(--color-ash-text);">Otimização de SEO e recomendação</span>
+                    </div>
+                    <input type="text" id="post-yt-tags-input" placeholder="shorts, viral, curiosidades, fatos..." style="width:100%; font-size:0.85rem; padding:0.65rem 0.85rem; background:#ffffff; border:1px solid var(--color-border-input); border-radius:var(--radius-inputs); color:var(--color-ultraviolet-key); font-family:var(--font-mono);">
+                  </div>
+
+                  <!-- Botão de Ação e Link de Retorno -->
+                  <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--color-carbon-border); padding-top:1rem; flex-wrap:wrap; gap:0.75rem;">
+                    <div id="post-yt-published-link" style="font-size:0.86rem; color:var(--color-emerald-ok); font-weight:600;"></div>
+                    <button type="button" class="btn-primary" id="btn-post-youtube-short" style="background:#cc0000; border-color:#ff1a1a; display:inline-flex; align-items:center; gap:0.5rem; padding:0.75rem 1.6rem; font-size:0.9rem; font-weight:700;">
+                      <svg style="width:18px;height:18px;fill:currentColor;" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                      <span id="btn-post-youtube-text">Publicar Short Agora</span>
+                    </button>
+                  </div>
+
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ABA 4: PROJETOS (GERENCIAMENTO COMPLETO DE TODOS OS PROJETOS NO DISCO) -->
+      <section class="tab-content" id="tab-projects">
+        <div class="card" style="margin-bottom: 1.5rem;">
+          <div class="card-header" style="align-items: center;">
+            <div class="header-left">
+              <span class="card-step-badge">Repositório Local</span>
+              <h2>Projetos Salvos no Disco</h2>
+            </div>
+            <div class="header-actions" style="display: flex; gap: 0.75rem; align-items: center;">
+              <span class="status-pill online">
+                <span id="projects-total-badge">0 Projetos</span>
+              </span>
+            </div>
+          </div>
+          <p class="section-desc">
+            Visualize todos os seus projetos baixados e editados. Alterne o status para organização (Em Edição, Pronto ou Postado), filtre conteúdos e gerencie o repositório.
+          </p>
+
+          <!-- Barra de Busca & Filtro de Projetos -->
+          <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-carbon-border);">
+            <div style="flex: 1; min-width: 240px; position: relative;">
+              <input type="text" id="projects-search-input" placeholder="Buscar projeto por nome ou título..." style="width: 100%; padding-left: 2.2rem;">
+              <span style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); display: flex; align-items: center; color: var(--color-ash-text);">
+                <svg style="width:14px;height:14px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              </span>
+            </div>
+            <div style="display: flex; gap: 0.45rem; align-items: center; flex-wrap: wrap;">
+              <button class="filter-proj-btn active" data-filter="all">Todos</button>
+              <button class="filter-proj-btn" data-filter="ready" style="color: var(--color-emerald-ok); display:inline-flex; align-items:center; gap:0.35rem;">
+                <svg style="width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none;" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                Prontos (9:16)
+              </button>
+              <button class="filter-proj-btn" data-filter="in_progress" style="color: var(--color-amber-warn); display:inline-flex; align-items:center; gap:0.35rem;">
+                <svg style="width:13px;height:13px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Em Edição
+              </button>
+              <button class="filter-proj-btn" data-filter="posted" style="color: var(--color-ultraviolet-key); display:inline-flex; align-items:center; gap:0.35rem;">
+                <svg style="width:13px;height:13px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
+                Todos Postados
+              </button>
+              <button class="filter-proj-btn" data-filter="posted_pt" style="color: #0284c7; display:inline-flex; align-items:center; gap:0.35rem;">
+                Postado PT
+              </button>
+              <button class="filter-proj-btn" data-filter="posted_es" style="color: #7c3aed; display:inline-flex; align-items:center; gap:0.35rem;">
+                Postado ESP
+              </button>
+              <button class="filter-proj-btn" data-filter="posted_both" style="color: #059669; display:inline-flex; align-items:center; gap:0.35rem;">
+                Postado nos 2
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabela de Projetos Salvos no Disco -->
+        <div class="projects-table-wrapper" style="overflow-x: auto; background: var(--color-slate-layer); border: 1px solid var(--color-carbon-border); border-radius: var(--radius-cards); box-shadow: var(--shadow-card);">
+          <table class="projects-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+            <thead>
+              <tr style="border-bottom: 1px solid var(--color-carbon-border); background: var(--color-obsidian-surface); color: var(--color-fog-text); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; font-family: var(--font-mono);">
+                <th style="padding: 0.85rem 1rem; width: 60px;">Mídia</th>
+                <th style="padding: 0.85rem 1rem;">Vídeo / Projeto</th>
+                <th style="padding: 0.85rem 1rem; width: 110px;">Duração</th>
+                <th style="padding: 0.85rem 1rem; width: 140px;">Idiomas</th>
+                <th style="padding: 0.85rem 1rem; width: 150px;">Status</th>
+                <th style="padding: 0.85rem 1rem; width: 140px;">Agendado</th>
+                <th style="padding: 0.85rem 1rem; width: 180px; text-align: right;">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="projects-full-grid">
+              <!-- Renderizado dinamicamente via app.js -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ABA 5: YOUTUBE MULTI-CANAL STUDIO -->
+      <section class="tab-content" id="tab-youtube">
+        <div class="card" style="max-width: 1050px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.5rem;">
+          
+          <!-- Top Bar: Título e Ações -->
+          <div class="card-header" style="align-items: center; border-bottom: 1px solid var(--color-carbon-border); padding-bottom: 1.25rem;">
+            <div class="header-left">
+              <span class="card-step-badge" style="background: rgba(255,51,51,0.15); color: #ff5555; border: 1px solid rgba(255,51,51,0.3);">YouTube Studio Multi-Canal</span>
+              <h2>Canais Cadastrados (<span id="yt-total-channels-count">0</span>)</h2>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+              <button type="button" class="btn-secondary btn-sm" id="btn-yt-refresh-all" title="Atualizar métricas de todos os canais" style="display:inline-flex; align-items:center; gap:0.4rem; padding: 7px 12px;">
+                <svg style="width:14px;height:14px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                Atualizar Métricas
+              </button>
+
+              <a href="/api/auth/youtube/login" class="btn-primary" id="btn-add-yt-channel" style="text-decoration:none; display:inline-flex; align-items:center; gap:0.45rem; padding: 7px 14px; font-size:0.82rem; background: #cc0000; border-color: #ff1a1a;">
+                <svg style="width:15px;height:15px;fill:currentColor;" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                + Conectar Novo Canal
+              </a>
+            </div>
+          </div>
+
+          <p class="section-desc" style="margin: 0; color: var(--color-fog-text);">
+            Todos os seus canais ficam cadastrados e disponíveis simultaneamente. Na hora de postar qualquer vídeo no estúdio, basta selecionar o canal de destino desejado.
+          </p>
+
+          <!-- Estado Vazio (Nenhum canal conectado) -->
+          <div id="yt-empty-state" class="hidden" style="text-align: center; padding: 3.5rem 1.5rem; background: var(--color-obsidian-surface); border: 1px dashed var(--color-carbon-border); border-radius: var(--radius-cards);">
+            <div style="width:64px;height:64px;border-radius:50%;background:rgba(255,0,0,0.1);display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;color:#ff3333;">
+              <svg style="width:34px;height:34px;fill:currentColor;" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+            </div>
+            <h3 style="color:var(--color-frost-white); margin-bottom:0.5rem; font-size:1.25rem;">Nenhum canal cadastrado ainda</h3>
+            <p style="color:var(--color-fog-text); max-width:480px; margin:0 auto 1.5rem; font-size:0.9rem;">
+              Conecte seus canais do YouTube para gerenciar seus apelidos, acompanhar estatísticas em tempo real e postar Shorts diretamente.
+            </p>
+            <a href="/api/auth/youtube/login" class="btn-primary" style="text-decoration:none; display:inline-flex; align-items:center; gap:0.5rem; padding: 10px 22px; font-size:0.9rem; background:#cc0000; border-color:#ff1a1a;">
+              Conectar Primeiro Canal com o Google
+            </a>
+          </div>
+
+          <!-- Grade de Cards de Todos os Canais Cadastrados -->
+          <div id="yt-channels-grid" style="display: flex; flex-direction: column; gap: 1.25rem;">
+            <!-- Renderizado dinamicamente via app.js -->
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ABA 6: CONFIGURAÇÕES & CHAVES DE API -->
+      <section class="tab-content" id="tab-settings">
+        <div class="card" style="max-width: 900px; margin: 0 auto;">
+          <div class="card-header" style="align-items: center; border-bottom: 1px solid var(--color-carbon-border); padding-bottom: 1rem;">
+            <div class="header-left">
+              <span class="card-step-badge">Painel Central</span>
+              <h2>Configurações do Sistema & Chaves de IA</h2>
+            </div>
+            <button class="btn-refresh-status" id="btn-refresh-status" title="Atualizar conexões dos motores de IA" style="background:transparent;border:1px solid var(--color-carbon-border);color:var(--color-fog-text);border-radius:var(--radius-pill);padding:6px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:0.35rem;font-size:0.78rem;">
+              <svg style="width:14px;height:14px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+              Atualizar Motores
+            </button>
+          </div>
+          <p class="section-desc" style="margin-top: 1rem;">
+            Gerencie os motores de inteligência artificial do LUMIX Studio. Suas credenciais são gravadas de forma segura no arquivo <code>.env</code>.
+          </p>
+
+          <!-- Status dos Motores de IA -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.75rem;">
+            <!-- Card MiniMax -->
+            <div style="background: var(--color-obsidian-surface); border: 1px solid var(--color-carbon-border); border-radius: var(--radius-cards); padding: 1.1rem; display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div style="width:36px;height:36px;border-radius:10px;background:rgba(184,140,255,0.1);border:1px solid rgba(184,140,255,0.25);display:flex;align-items:center;justify-content:center;color:var(--color-ultraviolet-key);">
+                  <svg style="width:18px;height:18px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+                </div>
+                <div>
+                  <div style="font-weight: 600; color: var(--color-frost-white); font-size: 0.95rem;">MiniMax Neural Voice</div>
+                  <div style="font-size: 0.78rem; color: var(--color-fog-text);">Vozes ultra-realistas com emoção</div>
+                </div>
+              </div>
+              <div class="status-pill online" id="badge-voice-studio" style="font-weight: 600;">
+                <span class="status-dot"></span>
+                <span class="status-text">MiniMax TTS: Ativo</span>
+              </div>
+            </div>
+
+            <!-- Card OpenAI -->
+            <div style="background: var(--color-obsidian-surface); border: 1px solid var(--color-carbon-border); border-radius: var(--radius-cards); padding: 1.1rem; display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div style="width:36px;height:36px;border-radius:10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);display:flex;align-items:center;justify-content:center;color:var(--color-emerald-ok);">
+                  <svg style="width:18px;height:18px;stroke:currentColor;stroke-width:1.75;fill:none;" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
+                </div>
+                <div>
+                  <div style="font-weight: 600; color: var(--color-frost-white); font-size: 0.95rem;">OpenAI GPT-4o & Whisper</div>
+                  <div style="font-size: 0.78rem; color: var(--color-fog-text);">Transcrição, roteiros & títulos virais</div>
+                </div>
+              </div>
+              <div class="status-pill online" id="badge-openai" style="font-weight: 600;">
+                <span class="status-dot"></span>
+                <span class="status-text">OpenAI: Carregando...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card YouTube Channel Integration -->
+          <div style="background: var(--color-obsidian-surface); border: 1px solid var(--color-carbon-border); border-radius: var(--radius-cards); padding: 1.25rem; margin-bottom: 1.75rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+              <div style="display:flex; align-items:center; gap:0.75rem;">
+                <div style="width:40px;height:40px;border-radius:10px;background:rgba(255,0,0,0.1);border:1px solid rgba(255,0,0,0.25);display:flex;align-items:center;justify-content:center;color:#ff3333;">
+                  <svg style="width:22px;height:22px;fill:currentColor;" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                </div>
+                <div>
+                  <div style="font-weight:600; color:var(--color-frost-white); font-size:1rem;">Canal Oficial do YouTube (OAuth 2.0)</div>
+                  <div id="settings-youtube-subtitle" style="font-size:0.8rem; color:var(--color-fog-text);">Permite publicar e agendar Shorts diretamente para o seu canal</div>
+                </div>
+              </div>
+              <div id="settings-youtube-badge" class="status-pill offline" style="font-weight:600;">
+                <span class="status-dot"></span>
+                <span class="status-text">Verificando...</span>
+              </div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border:1px solid var(--color-carbon-border); border-radius:var(--radius-inputs); padding:0.9rem 1.1rem;">
+              <div id="settings-youtube-info" style="font-size:0.85rem; color:var(--color-frost-white);">
+                <span>Nenhum canal conectado no momento.</span>
+              </div>
+              <div style="display:flex; gap:0.6rem;">
+                <a id="btn-settings-connect-youtube" href="/api/auth/youtube/login" class="btn-primary" style="text-decoration:none; display:inline-flex; align-items:center; gap:0.4rem; padding:6px 14px; font-size:0.82rem; background:#cc0000; border-color:#ff1a1a;">
+                  <svg style="width:14px;height:14px;fill:currentColor;" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                  Conectar Canal
+                </a>
+                <button type="button" id="btn-settings-disconnect-youtube" class="btn-secondary btn-sm" style="display:none; color:#f87171; border-color:rgba(239,68,68,0.3);">
+                  Desconectar
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Formulário de Chaves e Credenciais -->
+          <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+            <!-- OpenAI API Key -->
+            <div class="form-group" style="background: var(--color-obsidian-surface); border: 1px solid var(--color-carbon-border); padding: 1.25rem; border-radius: var(--radius-cards);">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem;">
+                <label for="setting-openai-key" style="margin:0; font-weight:600; color:var(--color-frost-white); font-size:0.95rem;">OpenAI API Key (GPT-4o-mini & Whisper)</label>
+                <span id="setting-openai-status" class="status-pill online" style="font-size:0.75rem; padding:3px 10px;">Conectado</span>
+              </div>
+              <p class="field-hint" style="margin-bottom:0.6rem;">Utilizado na transcrição Whisper e criação do roteiro traduzido com ganchos de alta retenção.</p>
+              <div style="display:flex; gap:0.5rem;">
+                <input type="password" id="setting-openai-key" placeholder="sk-proj-..." style="flex:1; font-family:var(--font-mono); font-size:0.85rem;">
+                <button type="button" class="btn-secondary btn-sm" id="btn-toggle-openai-key" title="Mostrar/Ocultar chave" style="padding: 0 1rem;">👁️ Revelar</button>
+              </div>
+            </div>
+
+            <!-- MiniMax API Key -->
+            <div class="form-group" style="background: var(--color-obsidian-surface); border: 1px solid var(--color-carbon-border); padding: 1.25rem; border-radius: var(--radius-cards);">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem;">
+                <label for="setting-minimax-key" style="margin:0; font-weight:600; color:var(--color-frost-white); font-size:0.95rem;">MiniMax API Key (Voz Neural Realista)</label>
+                <span id="setting-minimax-status" class="status-pill online" style="font-size:0.75rem; padding:3px 10px;">Ativo</span>
+              </div>
+              <p class="field-hint" style="margin-bottom:0.6rem;">Gera narrações em português com entonação humana para canais de curiosidades e recap.</p>
+              <div style="display:flex; gap:0.5rem;">
+                <input type="password" id="setting-minimax-key" placeholder="sk-api-..." style="flex:1; font-family:var(--font-mono); font-size:0.85rem;">
+                <button type="button" class="btn-secondary btn-sm" id="btn-toggle-minimax-key" title="Mostrar/Ocultar chave" style="padding: 0 1rem;">👁️ Revelar</button>
+              </div>
+            </div>
+
+            <!-- MiniMax Voice ID -->
+            <div class="form-group" style="background: var(--color-obsidian-surface); border: 1px solid var(--color-carbon-border); padding: 1.25rem; border-radius: var(--radius-cards);">
+              <label for="setting-minimax-voice" style="margin-bottom:0.35rem; font-weight:600; color:var(--color-frost-white); font-size:0.95rem;">MiniMax Voice ID (ID da Voz em Português):</label>
+              <p class="field-hint" style="margin-bottom:0.5rem;">Voz recomendada para canais dark: <code>moss_audio_7eb5eaa1-d18c-11f1-a1a6-e6b4e5387684</code></p>
+              <input type="text" id="setting-minimax-voice" placeholder="moss_audio_7eb5eaa1-d18c-11f1-a1a6-e6b4e5387684" style="font-family:var(--font-mono); font-size:0.85rem;">
+            </div>
+
+            <!-- Voice Studio URL -->
+            <div class="form-group" style="background: var(--color-obsidian-surface); border: 1px solid var(--color-carbon-border); padding: 1.25rem; border-radius: var(--radius-cards);">
+              <label for="setting-voicestudio-url" style="margin-bottom:0.35rem; font-weight:600; color:var(--color-frost-white); font-size:0.95rem;">Voice Studio URL (Local GPU Fallback):</label>
+              <p class="field-hint" style="margin-bottom:0.5rem;">Servidor local de TTS em GPU local caso não queira usar API da nuvem.</p>
+              <input type="text" id="setting-voicestudio-url" placeholder="http://127.0.0.1:3900" style="font-family:var(--font-mono); font-size:0.85rem;">
+            </div>
+
+            <!-- VMake AI Developer API Keys -->
+            <div class="form-group" style="background: var(--color-obsidian-surface); border: 1px solid var(--color-carbon-border); padding: 1.25rem; border-radius: var(--radius-cards);">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem;">
+                <label style="margin:0; font-weight:600; color:var(--color-frost-white); font-size:0.95rem;">VMake AI Developer API (SDK Oficial Nuvem)</label>
+                <span id="setting-vmake-status" class="status-pill online" style="font-size:0.75rem; padding:3px 10px;">Ativo (API Oficial)</span>
+              </div>
+              <p class="field-hint" style="margin-bottom:0.6rem;">Limpeza de vídeo direta via API sem abrir navegadores, com upload de alta velocidade em OSS e créditos oficiais do seu plano.</p>
+              
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:0.75rem;">
+                <div>
+                  <label for="setting-vmake-ak" style="font-size:0.8rem; font-weight:600; color:var(--color-mist-text); display:block; margin-bottom:0.25rem;">API Key (MT_AK):</label>
+                  <input type="text" id="setting-vmake-ak" placeholder="ba3e7b..." style="width:100%; font-family:var(--font-mono); font-size:0.85rem;">
+                </div>
+                <div>
+                  <label for="setting-vmake-sk" style="font-size:0.8rem; font-weight:600; color:var(--color-mist-text); display:block; margin-bottom:0.25rem;">Secret Access Key (MT_SK):</label>
+                  <input type="password" id="setting-vmake-sk" placeholder="c498b2..." style="width:100%; font-family:var(--font-mono); font-size:0.85rem;">
+                </div>
+              </div>
+
+              <div>
+                <label for="setting-vmake-task" style="font-size:0.8rem; font-weight:600; color:var(--color-mist-text); display:block; margin-bottom:0.25rem;">Função do VMake para Limpeza:</label>
+                <select id="setting-vmake-task" style="width:100%; font-size:0.85rem; padding:0.6rem;">
+                  <option value="SKM0002" selected>SKM0002: Subtitle Remover (Remover Legendas Embutidas) - Recomendado & Rápido</option>
+                  <option value="SKM0005">SKM0005: Smart Pro (Remoção Inteligente Pro Completa de Logos e Textos)</option>
+                  <option value="SKM0007">SKM0007: Watermark Remover (Remoção Específica de Marca D'água)</option>
+                  <option value="SKM0003">SKM0003: Smart (Remoção Inteligente Rápida)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Botão Salvar Configurações -->
+            <div style="display:flex; justify-content:flex-end; gap:1rem; border-top:1px solid var(--color-carbon-border); padding-top:1.25rem; margin-top:0.5rem;">
+              <button type="button" class="btn-primary" id="btn-save-settings">
+                Salvar Configurações
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal Piloto Automático em Tempo Real (LUMIX Glass) -->
+  <div id="autopilot-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div style="display:flex;align-items:center;gap:0.85rem;">
+          <div class="logo-symbol" style="width:36px;height:36px;">
+            <svg viewBox="0 0 100 80" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;">
+              <path d="M42 6 L84 6 L48 42 L6 42 Z" fill="white"/>
+              <path d="M22 48 L86 48 L70 78 L56 62 L4 62 Z" fill="white"/>
+            </svg>
+          </div>
+          <div>
+            <h3 style="margin:0;font-size:1.15rem;font-weight:800;letter-spacing:0.04em;">LUMIX Auto-Pilot Engine</h3>
+            <p id="autopilot-target-name" style="margin:0;font-size:0.78rem;color:var(--text-muted);"></p>
+          </div>
+        </div>
+        <button id="btn-close-autopilot" class="btn-close-modal" title="Fechar modal"><svg style="width:14px;height:14px;stroke:currentColor;stroke-width:2.2;fill:none;" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Checklist com etapas do pipeline -->
+        <div class="autopilot-steps-grid">
+          <div class="ap-step" id="ap-step-1"><span>📥</span> 1. Download</div>
+          <div class="ap-step" id="ap-step-2"><span>🧼</span> 2. VMake Pro</div>
+          <div class="ap-step" id="ap-step-3"><span>🔍</span> 3. Validação</div>
+          <div class="ap-step" id="ap-step-4"><span>🎙️</span> 4. Whisper</div>
+          <div class="ap-step" id="ap-step-5"><span>🌐</span> 5. Roteiro</div>
+          <div class="ap-step" id="ap-step-6"><span>🔊</span> 6. Voz Neural</div>
+          <div class="ap-step" id="ap-step-7"><span>✂️</span> 7. Corte Suave</div>
+          <div class="ap-step" id="ap-step-8"><span>🎯</span> 8. Auditoria</div>
+          <div class="ap-step" id="ap-step-9"><span>⏱️</span> 9. Cortes</div>
+          <div class="ap-step" id="ap-step-10"><span>✨</span> 10. Render 9:16</div>
+        </div>
+
+        <div class="log-container" style="margin-top:1rem;display:flex;flex-direction:column;">
+          <div class="log-header">
+            <span>Terminal LUMIX em Tempo Real</span>
+            <span id="autopilot-status-badge" class="job-status-running">Processando...</span>
+          </div>
+          <pre id="autopilot-log-output" class="log-output" style="max-height: 250px; min-height: 140px;"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Configurações & Chaves API -->
+  <div id="settings-modal" class="modal-backdrop hidden">
+    <div class="modal-card" style="max-width: 580px; width: 92%;">
+      <div class="modal-header">
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <div class="logo-symbol" style="width:28px;height:24px;">
+            <svg viewBox="0 0 100 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M42 6 L84 6 L48 42 L6 42 Z" fill="white"/>
+              <path d="M22 48 L86 48 L70 78 L56 62 L4 62 Z" fill="white"/>
+            </svg>
+          </div>
+          <div>
+            <h3 style="margin:0;font-size:1.15rem;font-weight:800;letter-spacing:0.04em;">Configurações & Chaves de API</h3>
+            <p style="margin:0;font-size:0.78rem;color:var(--text-muted);">Gerencie suas chaves sem precisar abrir o terminal ou arquivos</p>
+          </div>
+        </div>
+        <button id="btn-close-settings" class="btn-close-modal" title="Fechar modal"><svg style="width:14px;height:14px;stroke:currentColor;stroke-width:2.2;fill:none;" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+
+      <div class="modal-body" style="display:flex; flex-direction:column; gap:1.25rem;">
+        <!-- OpenAI API Key -->
+        <div class="form-group">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem;">
+            <label for="setting-openai-key" style="margin:0; font-weight:700; color:var(--text-main);">🔑 OpenAI API Key (GPT-4o-mini & Whisper)</label>
+            <span id="setting-openai-status" class="status-pill online" style="font-size:0.7rem; padding:2px 8px;">Conectado</span>
+          </div>
+          <p class="field-hint" style="margin-bottom:0.4rem;">Tradução com ganchos de alta retenção, storytelling e criação de títulos/copys virais.</p>
+          <div style="display:flex; gap:0.5rem;">
+            <input type="password" id="setting-openai-key" placeholder="sk-proj-..." style="flex:1;">
+            <button type="button" class="btn-secondary btn-sm" id="btn-toggle-openai-key" title="Mostrar/Ocultar chave">👁️</button>
+          </div>
+        </div>
+
+        <!-- MiniMax API Key -->
+        <div class="form-group">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem;">
+            <label for="setting-minimax-key" style="margin:0; font-weight:700; color:var(--text-main);">🎙️ MiniMax API Key (Voz Neural Realista)</label>
+            <span id="setting-minimax-status" class="status-pill online" style="font-size:0.7rem; padding:2px 8px;">Ativo</span>
+          </div>
+          <p class="field-hint" style="margin-bottom:0.4rem;">Gera narrações humanas com emoção, respiração natural e ritmo dinâmico para curiosidades.</p>
+          <div style="display:flex; gap:0.5rem;">
+            <input type="password" id="setting-minimax-key" placeholder="sk-api-..." style="flex:1;">
+            <button type="button" class="btn-secondary btn-sm" id="btn-toggle-minimax-key" title="Mostrar/Ocultar chave">👁️</button>
+          </div>
+        </div>
+
+        <!-- MiniMax Voice ID -->
+        <div class="form-group">
+          <label for="setting-minimax-voice" style="margin-bottom:0.35rem; font-weight:700; color:var(--text-main);">🔊 MiniMax Voice ID (ID da Voz em Português):</label>
+          <input type="text" id="setting-minimax-voice" placeholder="moss_audio_7eb5eaa1-d18c-11f1-a1a6-e6b4e5387684">
+          <span style="font-size:0.72rem; color:var(--text-muted); margin-top:0.25rem;">Padrão recomendado para canais dark: <code>moss_audio_7eb5eaa1-d18c-11f1-a1a6-e6b4e5387684</code></span>
+        </div>
+
+        <!-- Voice Studio URL -->
+        <div class="form-group">
+          <label for="setting-voicestudio-url" style="margin-bottom:0.35rem; font-weight:700; color:var(--text-main);">🖥️ Voice Studio URL (Local GPU Fallback):</label>
+          <input type="text" id="setting-voicestudio-url" placeholder="http://127.0.0.1:3900">
+        </div>
+
+        <!-- Ações do Modal -->
+        <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:0.5rem; border-top:1px solid var(--color-carbon-border); padding-top:1rem;">
+          <button type="button" class="btn-secondary" id="btn-cancel-settings">Cancelar</button>
+          <button type="button" class="btn-primary" id="btn-save-settings">💾 Salvar Alterações</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Renomear Projeto -->
+  <div id="rename-modal" class="modal-backdrop hidden">
+    <div class="modal-card" style="max-width: 480px; width: 90%;">
+      <div class="modal-header">
+        <h3 style="margin:0;font-size:1.15rem;font-weight:800;">✏️ Renomear Projeto</h3>
+        <button id="btn-close-rename" class="btn-close-modal" title="Fechar modal"><svg style="width:14px;height:14px;stroke:currentColor;stroke-width:2.2;fill:none;" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body" style="display:flex; flex-direction:column; gap:1.25rem;">
+        <div class="form-group">
+          <label for="input-rename-title" style="margin-bottom:0.4rem; font-weight:700; color:var(--text-main);">Novo Título de Exibição:</label>
+          <input type="text" id="input-rename-title" placeholder="Digite o novo título..." style="width:100%;">
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
+          <button type="button" class="btn-secondary" id="btn-cancel-rename">Cancelar</button>
+          <button type="button" class="btn-primary" id="btn-confirm-rename" style="font-weight:700;">💾 Salvar Título</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Visualização de Logs de Erro / Histórico -->
+  <div id="queue-logs-modal" class="modal-backdrop hidden">
+    <div class="modal-card" style="max-width: 780px; width: 95%;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--color-carbon-border); padding-bottom: 0.85rem;">
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+          <span style="font-size: 1.2rem;">📋</span>
+          <div>
+            <h3 id="modal-logs-title" style="margin:0; font-size:1.1rem; font-weight:800; color:var(--color-frost-white);">Terminal do Job</h3>
+            <span id="modal-logs-status" style="font-size:0.75rem; font-family:var(--font-mono); color:var(--color-code-rose);"></span>
+          </div>
+        </div>
+        <button id="btn-close-queue-logs" class="btn-close-modal" title="Fechar modal"><svg style="width:14px;height:14px;stroke:currentColor;stroke-width:2.2;fill:none;" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body" style="margin-top: 1rem;">
+        <pre id="modal-logs-content" style="max-height: 420px; overflow-y: auto; background: rgba(5,5,15,0.92); border: 1px solid rgba(255,255,255,0.08); padding: 1rem; border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: 0.78rem; color: #a7f3d0; white-space: pre-wrap; line-height: 1.5;"></pre>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:1rem; border-top:1px solid var(--color-carbon-border); padding-top:0.85rem;">
+          <span style="font-size:0.75rem; color:var(--text-muted);">Dica: Erros críticos são marcados com [ERR] e [ERRO_FATAL].</span>
+          <button type="button" class="btn-secondary btn-sm" id="btn-copy-modal-logs" style="font-weight:600;">📋 Copiar Logs</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Refazer Vídeo na Fila de Produção -->
+  <div id="rerun-queue-modal" class="modal-backdrop hidden">
+    <div class="modal-card rerun-modal-card">
+      <div class="modal-header" style="border-bottom: 1px solid var(--color-carbon-border); padding: 0.85rem 1.15rem;">
+        <div style="display:flex; align-items:center; gap:0.6rem; min-width:0; flex:1;">
+          <span style="font-size: 1.25rem;">🔄</span>
+          <div class="rerun-header-title-box">
+            <h3 style="margin:0; font-size:1.05rem; font-weight:800; color:var(--color-frost-white); line-height: 1.2;">Refazer Vídeo na Fila</h3>
+            <span id="rerun-modal-project-name" class="rerun-project-badge" title=""></span>
+          </div>
+        </div>
+        <button id="btn-close-rerun-modal" class="btn-close-modal" title="Fechar modal"><svg style="width:14px;height:14px;stroke:currentColor;stroke-width:2.2;fill:none;" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+
+      <div class="modal-body" style="display:flex; flex-direction:column; gap:0.85rem; padding: 1.15rem;">
+        
+        <!-- Seleção de Idioma -->
+        <div>
+          <label style="font-size:0.73rem; font-weight:700; color:var(--color-fog-text); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:0.35rem;">
+            Idioma para Refazer
+          </label>
+          <div class="rerun-lang-grid">
+            <label class="rerun-lang-pill" id="lbl-rerun-lang-pt">
+              <input type="radio" name="rerun-language" value="pt">
+              <span>🇧🇷 Português</span>
+            </label>
+            <label class="rerun-lang-pill" id="lbl-rerun-lang-es">
+              <input type="radio" name="rerun-language" value="es">
+              <span>🇪🇸 Espanhol</span>
+            </label>
+            <label class="rerun-lang-pill" id="lbl-rerun-lang-en">
+              <input type="radio" name="rerun-language" value="en">
+              <span>🇺🇸 Inglês</span>
+            </label>
+            <label class="rerun-lang-pill" id="lbl-rerun-lang-both">
+              <input type="radio" name="rerun-language" value="both">
+              <span>🌐 Ambos (PT+ES)</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Modo de Execução Clean -->
+        <div>
+          <label style="font-size:0.73rem; font-weight:700; color:var(--color-fog-text); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:0.35rem;">
+            Modo de Execução
+          </label>
+          <div style="display:flex; flex-direction:column; gap:0.45rem;">
+            <label class="rerun-mode-card">
+              <input type="radio" name="rerun-mode" value="full">
+              <div style="font-weight:600; font-size:0.83rem; color:var(--color-frost-white);">🚀 Refazer Completo (Do Zero)</div>
+            </label>
+
+            <label class="rerun-mode-card" style="align-items:flex-start; flex-direction:column; gap:0.5rem;">
+              <div style="display:flex; align-items:center; gap:0.6rem; width:100%;">
+                <input type="radio" name="rerun-mode" value="partial" checked>
+                <div style="font-weight:600; font-size:0.83rem; color:var(--color-frost-white);">🎯 A partir de uma etapa específica</div>
+              </div>
+              
+              <div id="rerun-step-select-wrapper" style="width:100%; padding-left:1.5rem; box-sizing:border-box;">
+                <select id="select-rerun-step" class="rerun-select-clean">
+                  <option value="transcribe">🎙️ Etapa 2: Transcrição Whisper</option>
+                  <option value="translate">🌐 Etapa 3: Roteiro & Tradução</option>
+                  <option value="tts">🔊 Etapa 4: Narração MiniMax TTS</option>
+                  <option value="trim">✂️ Etapa 5: Corte de Silêncios</option>
+                  <option value="cut">🎬 Etapa 6: Cortes Rítmicos</option>
+                  <option value="merge" selected>🎵 Etapa 7: Mesclar Áudio + Vídeo</option>
+                  <option value="render_9x16">✨ Etapa 8: Render 9:16 + Legendas</option>
+                  <option value="post_copy">📝 Etapa 9: Gerar Copys Virais</option>
+                </select>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Opção de Trilha Sonora / Música de Fundo -->
+        <label class="rerun-mode-card" style="margin-top:0.1rem;">
+          <input type="checkbox" id="rerun-music-checkbox" checked style="accent-color:var(--color-ultraviolet-key); width:16px; height:16px;">
+          <span style="font-size:1.05rem;">🎵</span>
+          <div style="font-size:0.83rem; font-weight:600; color:var(--color-frost-white);">
+            Trilha Sonora de Fundo (Ogryzek.mp3)
+          </div>
+        </label>
+
+        <div style="display:flex; justify-content:flex-end; gap:0.6rem; margin-top:0.35rem; border-top:1px solid var(--color-carbon-border); padding-top:0.85rem;">
+          <button type="button" class="btn-secondary btn-sm" id="btn-cancel-rerun" style="padding:0.45rem 0.9rem;">Cancelar</button>
+          <button type="button" class="btn-primary btn-sm" id="btn-confirm-rerun" style="font-weight:700; padding:0.45rem 1rem;">
+            <span>➕</span> Enviar para Fila
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Adicionar à Fila com Seleção de Idiomas -->
+  <div id="modal-add-to-queue" class="modal-backdrop hidden">
+    <div class="modal-card" style="max-width: 520px; width: 92%;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--color-carbon-border); padding-bottom: 0.85rem;">
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+          <span style="font-size: 1.3rem;">⚡</span>
+          <div>
+            <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:var(--color-frost-white);">Adicionar à Fila de Produção</h3>
+            <span id="queue-add-modal-subtitle" style="font-size:0.75rem; color:var(--color-fog-text);">Configure os idiomas para este vídeo</span>
+          </div>
+        </div>
+        <button id="btn-close-queue-add-modal" class="btn-close-modal" title="Fechar modal"><svg style="width:14px;height:14px;stroke:currentColor;stroke-width:2.2;fill:none;" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+
+      <div class="modal-body" style="display:flex; flex-direction:column; gap:1.15rem; margin-top:1rem;">
+        <div id="queue-add-video-preview" style="display:flex; gap:0.75rem; align-items:center; background:rgba(255,255,255,0.03); padding:0.75rem; border-radius:var(--radius-sm); border:1px solid var(--color-carbon-border);">
+          <img id="queue-add-modal-thumb" src="" alt="Thumbnail" style="width:55px; height:80px; object-fit:cover; border-radius:6px; background:#12131f;">
+          <div style="flex:1; overflow:hidden;">
+            <div id="queue-add-modal-title" style="font-size:0.86rem; font-weight:700; color:var(--color-frost-white); margin-bottom:0.25rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Título do Vídeo</div>
+            <div id="queue-add-modal-target" style="font-size:0.72rem; font-family:var(--font-mono); color:var(--color-ash-text); word-break:break-all;">URL</div>
+          </div>
+        </div>
+
+        <div>
+          <label style="font-size:0.82rem; font-weight:700; color:var(--color-frost-white); display:block; margin-bottom:0.5rem;">
+            Selecione os Idiomas para Gerar:
+          </label>
+          <div style="display:flex; flex-direction:column; gap:0.6rem;">
+            <label style="display:flex; align-items:center; gap:0.65rem; padding:0.65rem 0.85rem; background:rgba(255,255,255,0.02); border:1px solid var(--color-carbon-border); border-radius:var(--radius-sm); cursor:pointer;">
+              <input type="checkbox" id="queue-lang-pt" value="pt" checked style="accent-color:var(--color-ultraviolet-key); width:18px; height:18px;">
+              <span style="font-size:1.1rem;">🇧🇷</span>
+              <div style="flex:1;">
+                <div style="font-size:0.85rem; font-weight:700; color:var(--color-frost-white);">Português (Brasil)</div>
+                <div style="font-size:0.72rem; color:var(--color-fog-text);">Tradução viral PT-BR + Voz neural + Legendas sincronizadas</div>
+              </div>
+            </label>
+
+            <label style="display:flex; align-items:center; gap:0.65rem; padding:0.65rem 0.85rem; background:rgba(255,255,255,0.02); border:1px solid var(--color-carbon-border); border-radius:var(--radius-sm); cursor:pointer;">
+              <input type="checkbox" id="queue-lang-es" value="es" style="accent-color:var(--color-ultraviolet-key); width:18px; height:18px;">
+              <span style="font-size:1.1rem;">🇪🇸</span>
+              <div style="flex:1;">
+                <div style="font-size:0.85rem; font-weight:700; color:var(--color-frost-white);">Espanhol (Español Latino Neutro)</div>
+                <div style="font-size:0.72rem; color:var(--color-fog-text);">Reaproveita o vídeo limpo pelo VMake sem custo extra de download</div>
+              </div>
+            </label>
+
+            <label style="display:flex; align-items:center; gap:0.65rem; padding:0.65rem 0.85rem; background:rgba(255,255,255,0.02); border:1px solid var(--color-carbon-border); border-radius:var(--radius-sm); cursor:pointer;">
+              <input type="checkbox" id="queue-lang-en" value="en" style="accent-color:var(--color-ultraviolet-key); width:18px; height:18px;">
+              <span style="font-size:1.1rem;">🇺🇸</span>
+              <div style="flex:1;">
+                <div style="font-size:0.85rem; font-weight:700; color:var(--color-frost-white);">Inglês (English)</div>
+                <div style="font-size:0.72rem; color:var(--color-fog-text);">Adaptação viral em inglês + voz neural em inglês (MINIMAX_VOICE_ID_EN) + legendas</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Opção de Trilha Sonora / Música de Fundo ao Criar -->
+        <div style="border-top: 1px solid var(--color-carbon-border); padding-top: 0.85rem;">
+          <label style="display:flex; align-items:center; gap:0.65rem; padding:0.65rem 0.85rem; background:rgba(255,255,255,0.02); border:1px solid var(--color-carbon-border); border-radius:var(--radius-sm); cursor:pointer;">
+            <input type="checkbox" id="queue-add-music-checkbox" checked style="accent-color:var(--color-ultraviolet-key); width:18px; height:18px;">
+            <span style="font-size:1.15rem;">🎵</span>
+            <div style="flex:1;">
+              <div style="font-size:0.85rem; font-weight:700; color:var(--color-frost-white);">Adicionar Música de Fundo (Ogryzek)</div>
+              <div style="font-size:0.72rem; color:var(--color-fog-text);">Mixar trilha sonora suave de fundo com a narração dublada</div>
+            </div>
+          </label>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:0.5rem; border-top:1px solid var(--color-carbon-border); padding-top:1rem;">
+          <button type="button" class="btn-secondary" id="btn-cancel-queue-add">Cancelar</button>
+          <button type="button" class="btn-primary" id="btn-confirm-queue-add" style="font-weight:700;">
+            <span>⚡</span> Confirmar e Adicionar à Fila
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Adicionar Novo Idioma no Estúdio -->
+  <div id="modal-add-studio-lang" class="modal-backdrop hidden">
+    <div class="modal-card" style="max-width: 500px; width: 92%;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--color-carbon-border); padding-bottom: 0.85rem;">
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+          <span style="font-size: 1.3rem;">🌐</span>
+          <div>
+            <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:var(--color-frost-white);">Gerar Projeto em Novo Idioma</h3>
+            <span id="studio-add-lang-proj-name" style="font-size:0.75rem; font-family:var(--font-mono); color:var(--color-ultraviolet-key);"></span>
+          </div>
+        </div>
+        <button id="btn-close-studio-add-lang" class="btn-close-modal" title="Fechar modal"><svg style="width:14px;height:14px;stroke:currentColor;stroke-width:2.2;fill:none;" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+
+      <div class="modal-body" style="display:flex; flex-direction:column; gap:1.15rem; margin-top:1rem;">
+        <p style="font-size:0.84rem; color:var(--color-fog-text); margin:0; line-height:1.5;">
+          O visual limpo pelo VMake (<code>sem_marca.mp4</code>) e os cortes da timeline são <strong>100% reaproveitados</strong>! Escolha o idioma desejado:
+        </p>
+
+        <div>
+          <label for="select-new-studio-lang" style="font-size:0.78rem; font-weight:700; color:var(--color-frost-white); display:block; margin-bottom:0.35rem;">Selecione o Idioma:</label>
+          <select id="select-new-studio-lang" style="width:100%; background:var(--color-obsidian-surface); border:1px solid var(--color-carbon-border); color:var(--color-lunar-white); padding:0.65rem 0.85rem; border-radius:var(--radius-inputs); font-size:0.88rem; font-weight:600;">
+            <option value="es" selected>🇪🇸 Espanhol (Español Latino Neutro)</option>
+            <option value="en">🇺🇸 Inglês (English)</option>
+            <option value="en">🇺🇸 Inglês (English)</option>
+            <option value="pt">🇧🇷 Português (Brasil)</option>
+          </select>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:0.65rem; margin-top:0.25rem;">
+          <button type="button" class="btn-primary" id="btn-confirm-studio-lang-queue" style="font-weight:700; padding:0.75rem 1rem; justify-content:center;">
+            <span>🚀</span> Enviar para Fila de Produção (Gerar Tudo Automático)
+          </button>
+          <button type="button" class="btn-secondary" id="btn-confirm-studio-lang-tab" style="padding:0.65rem 1rem; justify-content:center;">
+            <span>➕</span> Apenas Abrir Aba no Estúdio (Editar Passo a Passo)
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Universal de Diálogos & Confirmações LUMIX -->
+  <div id="custom-dialog-modal" class="modal-backdrop hidden" style="z-index: 99999;">
+    <div class="modal-card dialog-modal-card">
+      <div class="dialog-body">
+        <div id="dialog-icon-wrapper" class="dialog-icon-wrapper danger">
+          <span id="dialog-icon">⚠️</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.35rem; width: 100%;">
+          <h3 id="dialog-title" style="margin: 0; font-size: 1.18rem; font-weight: 800; color: var(--color-frost-white);">Confirmação</h3>
+          <p id="dialog-message" style="margin: 0; font-size: 0.88rem; line-height: 1.5; color: var(--color-mist-text); word-break: break-word;">Mensagem</p>
+        </div>
+      </div>
+      <div class="dialog-footer">
+        <button type="button" class="btn-secondary" id="dialog-btn-cancel" style="flex: 1; justify-content: center; font-weight: 600;">Cancelar</button>
+        <button type="button" class="btn-primary" id="dialog-btn-confirm" style="flex: 1; justify-content: center; font-weight: 700;">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Prompt & Cópia de Texto -->
+  <div id="custom-prompt-modal" class="modal-backdrop hidden" style="z-index: 99999;">
+    <div class="modal-card dialog-modal-card" style="max-width: 480px;">
+      <div class="dialog-body" style="padding-bottom: 0.5rem;">
+        <div class="dialog-icon-wrapper info">
+          <span>🔗</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%;">
+          <h3 id="prompt-dialog-title" style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--color-frost-white);">Copiar Link</h3>
+          <p id="prompt-dialog-message" style="margin: 0; font-size: 0.85rem; color: var(--color-mist-text);">Copie o link direto abaixo:</p>
+          <div style="margin-top: 0.5rem;">
+            <input type="text" id="prompt-dialog-input" readonly style="width: 100%; font-family: var(--font-mono); font-size: 0.82rem; background: #f8fafc; cursor: text;" onclick="this.select()">
+          </div>
+        </div>
+      </div>
+      <div class="dialog-footer" style="justify-content: flex-end;">
+        <button type="button" class="btn-secondary" id="prompt-btn-close">Fechar</button>
+        <button type="button" class="btn-primary" id="prompt-btn-copy" style="font-weight: 700;">📋 Copiar Link</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast de Notificações -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js?v=2.8.0"></script>
+</body>
+</html>

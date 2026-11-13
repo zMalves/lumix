@@ -1,0 +1,17 @@
+node_modules
+# Segredos: o docker-compose monta o .env e data/ em tempo de execução
+.env
+.env.*
+vmake_auth.json
+.vmake_profile
+data/youtube_channels.json
+videos/*
+!videos/production_queue.json
+!videos/projects_index.json
+tools/*.exe
+.git
+*.log
+scratch/
+test_*.mp4
+test_*.jpg
+
