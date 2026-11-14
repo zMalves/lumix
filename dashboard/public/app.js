@@ -4235,7 +4235,8 @@ async function loadManualProjectsList() {
   if (!sel) return;
   try {
     const res = await fetch('/api/projects');
-    const projects = await res.json();
+    const data = await res.json();
+    const projects = Array.isArray(data) ? data : (data.projects || []);
     const currentVal = sel.value;
     sel.innerHTML = '<option value="">-- Selecionar Projeto Existente --</option>';
     if (Array.isArray(projects)) {
