@@ -1914,6 +1914,543 @@ Sua missão:
         project: getProjectDetails(project)
       });
     }
+
+    // ====================================================
+    // ESTÚDIO MANUAL: VÍDEOS AUTORAIS (4:5 -> 9:16)
+    // ====================================================
+
+    // 1. Upload direto de vídeo autoral (stream binário para original.mp4)
+    if (pathname === '/api/manual/upload-video' && req.method === 'POST') {
+      const fileNameHeader = req.headers['x-filename'] || url.searchParams.get('filename') || 'video.mp4';
+      const customName = req.headers['x-project-name'] || url.searchParams.get('name') || '';
+      const decodedFileName = decodeURIComponent(fileNameHeader);
+      const baseName = sanitizeFolderName(customName || decodedFileName.replace(/\.[^.]+$/, '')) || 'video_manual';
+      const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+      const folderName = `manual_${timestamp}_${baseName}`;
+      const folderPath = path.join(VIDEOS_DIR, folderName);
+      fs.mkdirSync(folderPath, { recursive: true });
+
+      const targetFile = path.join(folderPath, 'original.mp4');
+      const writeStream = fs.createWriteStream(targetFile);
+
+      req.pipe(writeStream);
+
+      await new Promise((resolve, reject) => {
+        writeStream.on('finish', resolve);
+        writeStream.on('error', reject);
+        req.on('error', reject);
+      });
+
+      let duration = 0;
+      let width = 0;
+      let height = 0;
+      let hasAudio = false;
+      try {
+        const probeStr = execSync(`ffprobe -v error -select_streams v:0 -show_entries stream=width,height,duration -show_entries format=duration -of json "${targetFile}"`, { encoding: 'utf-8' });
+        const p = JSON.parse(probeStr);
+        duration = parseFloat(p.format?.duration || p.streams?.[0]?.duration || 0);
+        width = parseInt(p.streams?.[0]?.width || 0, 10);
+        height = parseInt(p.streams?.[0]?.height || 0, 10);
+        const audioProbe = execSync(`ffprobe -v error -select_streams a -show_entries stream=codec_type -of default=noprint_wrappers=1:nokey=1 "${targetFile}"`, { encoding: 'utf-8' }).trim();
+        hasAudio = audioProbe.length > 0;
+      } catch (_) {}
+
+      const crypto = require('node:crypto');
+      const info = {
+        id: 'VID-' + crypto.createHash('md5').update(folderName).digest('hex').slice(0, 6).toUpperCase(),
+        title: baseName.replace(/_/g, ' '),
+        createdAt: new Date().toISOString(),
+        isAuthorial: true,
+        aspectRatio: width && height ? `${width}:${height}` : 'unknown',
+        duration,
+        hasOriginalAudio: hasAudio,
+        status: 'uploaded'
+      };
+      fs.writeFileSync(path.join(folderPath, 'info.json'), JSON.stringify(info, null, 2), 'utf-8');
+
+      return sendJson(res, 200, {
+        success: true,
+        project: folderName,
+        videoUrl: `/media/${folderName}/original.mp4`,
+        duration,
+        width,
+        height,
+        hasAudio,
+        info
+      });
+    }
+
+    // 1b. Selecionar projeto existente para usar no Estúdio Manual
+    if (pathname === '/api/manual/select-project' && req.method === 'POST') {
+      const { project } = await parseBody(req);
+      if (!project) return sendJson(res, 400, { error: 'Nome do projeto necessário' });
+      const folderPath = path.join(VIDEOS_DIR, project);
+      if (!fs.existsSync(folderPath)) return sendJson(res, 404, { error: 'Projeto não encontrado' });
+
+      const videoFile = fs.existsSync(path.join(folderPath, 'sem_marca.mp4'))
+        ? 'sem_marca.mp4'
+        : (fs.existsSync(path.join(folderPath, 'original.mp4')) ? 'original.mp4' : null);
+
+      if (!videoFile) return sendJson(res, 400, { error: 'Nenhum vídeo original encontrado neste projeto' });
+
+      let duration = 0;
+      let width = 0;
+      let height = 0;
+      let hasAudio = false;
+      try {
+        const fullVid = path.join(folderPath, videoFile);
+        const probeStr = execSync(`ffprobe -v error -select_streams v:0 -show_entries stream=width,height,duration -show_entries format=duration -of json "${fullVid}"`, { encoding: 'utf-8' });
+        const p = JSON.parse(probeStr);
+        duration = parseFloat(p.format?.duration || p.streams?.[0]?.duration || 0);
+        width = parseInt(p.streams?.[0]?.width || 0, 10);
+        height = parseInt(p.streams?.[0]?.height || 0, 10);
+        const audioProbe = execSync(`ffprobe -v error -select_streams a -show_entries stream=codec_type -of default=noprint_wrappers=1:nokey=1 "${fullVid}"`, { encoding: 'utf-8' }).trim();
+        hasAudio = audioProbe.length > 0;
+      } catch (_) {}
+
+      let existingScript = '';
+      if (fs.existsSync(path.join(folderPath, 'roteiro_manual.txt'))) {
+        existingScript = fs.readFileSync(path.join(folderPath, 'roteiro_manual.txt'), 'utf-8');
+      } else if (fs.existsSync(path.join(folderPath, 'roteiro_traduzido.txt'))) {
+        existingScript = fs.readFileSync(path.join(folderPath, 'roteiro_traduzido.txt'), 'utf-8');
+      } else if (fs.existsSync(path.join(folderPath, 'transcricao_original.txt'))) {
+        existingScript = fs.readFileSync(path.join(folderPath, 'transcricao_original.txt'), 'utf-8');
+      }
+
+      return sendJson(res, 200, {
+        success: true,
+        project,
+        videoFile,
+        videoUrl: `/media/${project}/${videoFile}`,
+        duration,
+        width,
+        height,
+        hasAudio,
+        existingScript,
+        details: getProjectDetails(project)
+      });
+    }
+
+    // 2. Gerar áudio através do roteiro de narração (MiniMax TTS com idioma escolhido)
+    if (pathname === '/api/manual/generate-narration' && req.method === 'POST') {
+      const { project, text, lang = 'pt', speed = 1.05 } = await parseBody(req);
+      if (!project) return sendJson(res, 400, { error: 'Nome do projeto necessário' });
+      if (!text || !text.trim()) return sendJson(res, 400, { error: 'Roteiro de narração não pode estar vazio' });
+
+      const folderPath = path.join(VIDEOS_DIR, project);
+      if (!fs.existsSync(folderPath)) return sendJson(res, 404, { error: 'Pasta do projeto não encontrada' });
+
+      const voiceId = resolveVoiceId(lang, process.env.MINIMAX_VOICE_ID || 'moss_audio_7eb5eaa1-d18c-11f1-a1a6-e6b4e5387684');
+      const minimaxScript = path.join(ROOT_DIR, 'scripts', 'synthesize_minimax.js');
+
+      const scriptFile = lang === 'pt' ? 'roteiro_traduzido.txt' : `roteiro_traduzido_${lang}.txt`;
+      fs.writeFileSync(path.join(folderPath, scriptFile), text.trim(), 'utf-8');
+      fs.writeFileSync(path.join(folderPath, 'roteiro_manual.txt'), text.trim(), 'utf-8');
+
+      const audioFileName = lang === 'pt' ? 'narracao.mp3' : `narracao_${lang}.mp3`;
+      const tempTxt = path.join(folderPath, `temp_manual_${lang}.txt`);
+      const audioPath = path.join(folderPath, audioFileName);
+      fs.writeFileSync(tempTxt, text.trim(), 'utf-8');
+
+      try {
+        console.log(`[Manual Studio] Gerando narração (${lang.toUpperCase()})...`);
+        execSync(`node "${minimaxScript}" "${tempTxt}" "${audioPath}" "${voiceId}" ${parseFloat(speed) || 1.05}`, { timeout: 180000 });
+        if (fs.existsSync(tempTxt)) fs.unlinkSync(tempTxt);
+        if (lang === 'pt') {
+          try { fs.copyFileSync(audioPath, path.join(folderPath, 'narracao_pt.mp3')); } catch (_) {}
+        }
+      } catch (genErr) {
+        if (fs.existsSync(tempTxt)) fs.unlinkSync(tempTxt);
+        return sendJson(res, 500, { error: 'Falha na geração via MiniMax TTS', detail: genErr.message });
+      }
+
+      if (!fs.existsSync(audioPath)) {
+        return sendJson(res, 500, { error: `Arquivo ${audioFileName} não foi gerado pelo MiniMax` });
+      }
+
+      let duration = 0;
+      try {
+        duration = parseFloat(execSync(`ffprobe -v quiet -show_entries format=duration -of csv="p=0" "${audioPath}"`, { encoding: 'utf-8' }).trim());
+      } catch (_) {}
+
+      return sendJson(res, 200, {
+        success: true,
+        project,
+        lang,
+        audioFile: audioFileName,
+        audioUrl: `/media/${project}/${audioFileName}?t=${Date.now()}`,
+        duration
+      });
+    }
+
+    // 3. Cortar os silêncios da narração para ritmo dinâmico
+    if (pathname === '/api/manual/trim-silence' && req.method === 'POST') {
+      const { project, lang = 'pt', minSilence = 350, keepSilence = 200 } = await parseBody(req);
+      if (!project) return sendJson(res, 400, { error: 'Nome do projeto necessário' });
+      const folderPath = path.join(VIDEOS_DIR, project);
+      if (!fs.existsSync(folderPath)) return sendJson(res, 404, { error: 'Pasta do projeto não encontrada' });
+
+      const inAudioName = lang === 'pt' ? 'narracao.mp3' : `narracao_${lang}.mp3`;
+      const outAudioName = lang === 'pt' ? 'narracao_trimmed.mp3' : `narracao_trimmed_${lang}.mp3`;
+      const inPath = path.join(folderPath, inAudioName);
+      const outPath = path.join(folderPath, outAudioName);
+
+      if (!fs.existsSync(inPath)) {
+        return sendJson(res, 400, { error: `Áudio ${inAudioName} não encontrado. Gere a narração primeiro.` });
+      }
+
+      const trimScript = path.join(ROOT_DIR, 'scripts', 'trim-silence.py');
+      try {
+        const stdout = execSync(`"${PYTHON_BIN}" "${trimScript}" "${inPath}" "${outPath}" ${parseInt(minSilence) || 350} ${parseInt(keepSilence) || 200}`, { encoding: 'utf-8' });
+        if (lang === 'pt') {
+          try { fs.copyFileSync(outPath, path.join(folderPath, 'narracao_trimmed_pt.mp3')); } catch (_) {}
+        }
+
+        let origDur = 0;
+        let newDur = 0;
+        try {
+          origDur = parseFloat(execSync(`ffprobe -v quiet -show_entries format=duration -of csv="p=0" "${inPath}"`, { encoding: 'utf-8' }).trim());
+          newDur = parseFloat(execSync(`ffprobe -v quiet -show_entries format=duration -of csv="p=0" "${outPath}"`, { encoding: 'utf-8' }).trim());
+        } catch (_) {}
+
+        return sendJson(res, 200, {
+          success: true,
+          project,
+          lang,
+          audioFile: outAudioName,
+          audioUrl: `/media/${project}/${outAudioName}?t=${Date.now()}`,
+          originalDuration: origDur,
+          newDuration: newDur,
+          removedSeconds: Math.max(0, origDur - newDur),
+          output: stdout
+        });
+      } catch (trimErr) {
+        return sendJson(res, 500, { error: 'Erro ao cortar silêncios da narração', detail: trimErr.message });
+      }
+    }
+
+    // 4. Juntar Narração + Vídeo + Trilha Sonora (com opção de manter áudio original e acelerar para caber no vídeo)
+    if (pathname === '/api/manual/merge-sync' && req.method === 'POST') {
+      const { project, lang = 'pt', keepOriginalAudio = false, withMusic = true, fitAudioSpeed = true } = await parseBody(req);
+      if (!project) return sendJson(res, 400, { error: 'Nome do projeto necessário' });
+      const folderPath = path.join(VIDEOS_DIR, project);
+      if (!fs.existsSync(folderPath)) return sendJson(res, 404, { error: 'Pasta do projeto não encontrada' });
+
+      const videoFile = fs.existsSync(path.join(folderPath, 'sem_marca.mp4'))
+        ? path.join(folderPath, 'sem_marca.mp4')
+        : path.join(folderPath, 'original.mp4');
+
+      if (!fs.existsSync(videoFile)) return sendJson(res, 400, { error: 'Arquivo de vídeo não encontrado' });
+
+      const trimmedName = lang === 'pt' ? 'narracao_trimmed.mp3' : `narracao_trimmed_${lang}.mp3`;
+      const rawName = lang === 'pt' ? 'narracao.mp3' : `narracao_${lang}.mp3`;
+      const audioFile = fs.existsSync(path.join(folderPath, trimmedName))
+        ? path.join(folderPath, trimmedName)
+        : (fs.existsSync(path.join(folderPath, rawName)) ? path.join(folderPath, rawName) : null);
+
+      if (!audioFile) return sendJson(res, 400, { error: 'Áudio de narração não encontrado' });
+
+      const vDur = parseFloat(execSync(`ffprobe -v quiet -show_entries format=duration -of csv="p=0" "${videoFile}"`, { encoding: 'utf-8' }).trim());
+      const aDur = parseFloat(execSync(`ffprobe -v quiet -show_entries format=duration -of csv="p=0" "${audioFile}"`, { encoding: 'utf-8' }).trim());
+
+      let speedFactor = 1.0;
+      let filterAudio = 'anull';
+      if (fitAudioSpeed && aDur > vDur && vDur > 0) {
+        speedFactor = aDur / vDur;
+        if (speedFactor > 2.0) {
+          filterAudio = `atempo=2.0,atempo=${(speedFactor / 2.0).toFixed(4)}`;
+        } else if (speedFactor < 0.5) {
+          filterAudio = `atempo=0.5,atempo=${(speedFactor / 0.5).toFixed(4)}`;
+        } else {
+          filterAudio = `atempo=${speedFactor.toFixed(4)}`;
+        }
+      }
+
+      // Detecta se o vídeo possui trilha de áudio
+      let videoHasAudio = false;
+      try {
+        const audioProbe = execSync(`ffprobe -v error -select_streams a -show_entries stream=codec_type -of default=noprint_wrappers=1:nokey=1 "${videoFile}"`, { encoding: 'utf-8' }).trim();
+        videoHasAudio = audioProbe.length > 0;
+      } catch (_) {}
+
+      const bgMusicFile = path.join(ROOT_DIR, 'assets', 'music', 'Ogryzek.mp3');
+      const hasBgMusic = Boolean(withMusic) && fs.existsSync(bgMusicFile);
+
+      const finalName = lang === 'pt' ? 'final.mp4' : `final_${lang}.mp4`;
+      const finalFile = path.join(folderPath, finalName);
+
+      let cmd = '';
+      if (keepOriginalAudio && videoHasAudio) {
+        if (hasBgMusic) {
+          const filter = `[0:a]volume=0.30[orig_a];[1:a]${filterAudio},volume=1.00[voice];[2:a]volume=0.13[bg];[orig_a][voice][bg]amix=inputs=3:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+          cmd = `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -stream_loop -1 -i "${bgMusicFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
+        } else {
+          const filter = `[0:a]volume=0.30[orig_a];[1:a]${filterAudio},volume=1.00[voice];[orig_a][voice]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+          cmd = `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
+        }
+      } else {
+        if (hasBgMusic) {
+          const filter = `[1:a]${filterAudio},volume=1.00[voice];[2:a]volume=0.14[bg];[voice][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+          cmd = `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -stream_loop -1 -i "${bgMusicFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
+        } else {
+          const filter = `[1:a]${filterAudio},aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+          cmd = `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
+        }
+      }
+
+      try {
+        console.log(`[Manual Merge] Mesclando áudio e vídeo (${lang.toUpperCase()}) [Música: ${hasBgMusic}] [Áudio original: ${keepOriginalAudio && videoHasAudio}] [Aceleração: ${speedFactor.toFixed(2)}x]...`);
+        execSync(cmd, { stdio: 'inherit' });
+        if (lang === 'pt') {
+          try { fs.copyFileSync(finalFile, path.join(folderPath, 'final_pt.mp4')); } catch (_) {}
+        }
+
+        return sendJson(res, 200, {
+          success: true,
+          project,
+          lang,
+          videoDuration: vDur,
+          audioDuration: aDur,
+          speedFactor,
+          fitAudioSpeed,
+          keepOriginalAudio: keepOriginalAudio && videoHasAudio,
+          hasBgMusic,
+          finalUrl: `/media/${project}/${finalName}?t=${Date.now()}`
+        });
+      } catch (mergeErr) {
+        return sendJson(res, 500, { error: 'Erro ao mesclar áudio sincronizado', detail: mergeErr.message });
+      }
+    }
+
+    // 5. Etapa final: 4:5 para 9:16 Full HD com bordas desfocadas + opacidade reduzida + legendas (Sem anti-hash)
+    if (pathname === '/api/manual/render-4x5-to-9x16' && req.method === 'POST') {
+      const { project, lang = 'pt' } = await parseBody(req);
+      if (!project) return sendJson(res, 400, { error: 'Nome do projeto necessário' });
+      const folderPath = path.join(VIDEOS_DIR, project);
+      if (!fs.existsSync(folderPath)) return sendJson(res, 404, { error: 'Pasta do projeto não encontrada' });
+
+      const finalName = lang === 'pt' ? 'final.mp4' : `final_${lang}.mp4`;
+      const subName = lang === 'pt' ? 'legendas.ass' : `legendas_${lang}.ass`;
+      const out9x16Name = lang === 'pt' ? 'video_9x16.mp4' : `video_9x16_${lang}.mp4`;
+
+      const inputVid = fs.existsSync(path.join(folderPath, finalName))
+        ? path.join(folderPath, finalName)
+        : (fs.existsSync(path.join(folderPath, 'final.mp4'))
+            ? path.join(folderPath, 'final.mp4')
+            : path.join(folderPath, 'original.mp4'));
+
+      const subFile = path.join(folderPath, subName);
+      const output9x16 = path.join(folderPath, out9x16Name);
+      const subScript = path.join(ROOT_DIR, 'scripts', 'generate-subtitles.py');
+
+      try {
+        // Gera legendas dinâmicas via Whisper
+        console.log(`[Manual Master] Gerando legendas dinâmicas (${lang.toUpperCase()})...`);
+        execSync(`"${PYTHON_BIN}" "${subScript}" "${inputVid}" "${subFile}" "${lang}"`, { stdio: 'inherit' });
+        if (lang === 'pt') {
+          try { fs.copyFileSync(subFile, path.join(folderPath, 'legendas_pt.ass')); } catch (_) {}
+        }
+
+        // Renderização autoral 4:5 centralizado em canvas 1080x1920 (9:16) Full HD com bordas desfocadas (285px cada)
+        const subEscaped = subFile.replace(/\\/g, '/').replace(/:/g, '\\:');
+        const filterParts = [
+          `[0:v]scale=1920:1920,crop=1080:1920,avgblur=sizeX=45:sizeY=45,eq=brightness=-0.35:contrast=0.90[bg]`,
+          `[0:v]crop='min(iw,ih*4/5)':'min(ih,iw*5/4)':(iw-ow)/2:(ih-oh)/2,scale=1080:1350[fg]`,
+          `[bg][fg]overlay=0:285[v_comp]`,
+          `[v_comp]subtitles='${subEscaped}'[outv]`
+        ];
+        const filterComplex = filterParts.join(';');
+
+        console.log(`[Manual Master] Renderizando 4:5 -> 9:16 Full HD autoral...`);
+        execSync(`ffmpeg -y -i "${inputVid}" -filter_complex "${filterComplex}" -map "[outv]" -map 0:a? -c:v libx264 -preset fast -crf 19 -movflags +faststart -c:a aac -b:a 192k -ar 44100 "${output9x16}"`, { stdio: 'inherit' });
+
+        if (lang === 'pt') {
+          try {
+            fs.copyFileSync(output9x16, path.join(folderPath, 'video_9x16_pt.mp4'));
+            fs.copyFileSync(output9x16, path.join(folderPath, 'video_9x16_crop_quadrado.mp4'));
+            fs.copyFileSync(output9x16, path.join(folderPath, 'video_1x1_legendado.mp4'));
+          } catch (_) {}
+        }
+
+        // Thumbnails para visualização
+        try {
+          execSync(`ffmpeg -y -ss 00:00:05 -i "${output9x16}" -vframes 1 -q:v 2 "${path.join(folderPath, `final_val_5s_${lang}.jpg`)}"`, { stdio: 'ignore' });
+          execSync(`ffmpeg -y -ss 00:00:20 -i "${output9x16}" -vframes 1 -q:v 2 "${path.join(folderPath, `final_val_20s_${lang}.jpg`)}"`, { stdio: 'ignore' });
+          if (lang === 'pt') {
+            execSync(`ffmpeg -y -ss 00:00:05 -i "${output9x16}" -vframes 1 -q:v 2 "${path.join(folderPath, 'final_val_5s.jpg')}"`, { stdio: 'ignore' });
+            execSync(`ffmpeg -y -ss 00:00:20 -i "${output9x16}" -vframes 1 -q:v 2 "${path.join(folderPath, 'final_val_20s.jpg')}"`, { stdio: 'ignore' });
+          }
+        } catch (_) {}
+
+        // Títulos e cópia automática
+        try {
+          await generatePostCopyForProject(project, lang);
+        } catch (_) {}
+
+        return sendJson(res, 200, {
+          success: true,
+          project,
+          lang,
+          video9x16Url: `/media/${project}/${out9x16Name}?t=${Date.now()}`,
+          projectDetails: getProjectDetails(project)
+        });
+      } catch (renderErr) {
+        console.error('[Render 4x5 Error]', renderErr);
+        return sendJson(res, 500, { error: 'Erro ao renderizar vídeo 4:5 em 9:16 Full HD', detail: renderErr.message });
+      }
+    }
+
+    // 6. Pipeline 1-Clique: executa todo o fluxo manual de ponta a ponta
+    if (pathname === '/api/manual/run-all' && req.method === 'POST') {
+      const { project, text, lang = 'pt', keepOriginalAudio = false, withMusic = true, fitAudioSpeed = true, speed = 1.05 } = await parseBody(req);
+      if (!project) return sendJson(res, 400, { error: 'Nome do projeto necessário' });
+      if (!text || !text.trim()) return sendJson(res, 400, { error: 'Roteiro de narração não pode estar vazio' });
+
+      const folderPath = path.join(VIDEOS_DIR, project);
+      if (!fs.existsSync(folderPath)) return sendJson(res, 404, { error: 'Pasta do projeto não encontrada' });
+
+      try {
+        // Etapa 2: Narração
+        const voiceId = resolveVoiceId(lang, process.env.MINIMAX_VOICE_ID || 'moss_audio_7eb5eaa1-d18c-11f1-a1a6-e6b4e5387684');
+        const minimaxScript = path.join(ROOT_DIR, 'scripts', 'synthesize_minimax.js');
+        const scriptFile = lang === 'pt' ? 'roteiro_traduzido.txt' : `roteiro_traduzido_${lang}.txt`;
+        fs.writeFileSync(path.join(folderPath, scriptFile), text.trim(), 'utf-8');
+        fs.writeFileSync(path.join(folderPath, 'roteiro_manual.txt'), text.trim(), 'utf-8');
+
+        const audioFileName = lang === 'pt' ? 'narracao.mp3' : `narracao_${lang}.mp3`;
+        const tempTxt = path.join(folderPath, `temp_manual_${lang}.txt`);
+        const audioPath = path.join(folderPath, audioFileName);
+        fs.writeFileSync(tempTxt, text.trim(), 'utf-8');
+
+        execSync(`node "${minimaxScript}" "${tempTxt}" "${audioPath}" "${voiceId}" ${parseFloat(speed) || 1.05}`, { timeout: 180000 });
+        if (fs.existsSync(tempTxt)) fs.unlinkSync(tempTxt);
+        if (lang === 'pt') {
+          try { fs.copyFileSync(audioPath, path.join(folderPath, 'narracao_pt.mp3')); } catch (_) {}
+        }
+
+        // Etapa 3: Trim Silêncios
+        const trimmedFileName = lang === 'pt' ? 'narracao_trimmed.mp3' : `narracao_trimmed_${lang}.mp3`;
+        const trimmedPath = path.join(folderPath, trimmedFileName);
+        const trimScript = path.join(ROOT_DIR, 'scripts', 'trim-silence.py');
+        execSync(`"${PYTHON_BIN}" "${trimScript}" "${audioPath}" "${trimmedPath}" 350 200`, { encoding: 'utf-8' });
+        if (lang === 'pt') {
+          try { fs.copyFileSync(trimmedPath, path.join(folderPath, 'narracao_trimmed_pt.mp3')); } catch (_) {}
+        }
+
+        // Etapa 4: Mesclar Áudio + Vídeo + Trilha
+        const videoFile = fs.existsSync(path.join(folderPath, 'sem_marca.mp4'))
+          ? path.join(folderPath, 'sem_marca.mp4')
+          : path.join(folderPath, 'original.mp4');
+
+        const vDur = parseFloat(execSync(`ffprobe -v quiet -show_entries format=duration -of csv="p=0" "${videoFile}"`, { encoding: 'utf-8' }).trim());
+        const aDur = parseFloat(execSync(`ffprobe -v quiet -show_entries format=duration -of csv="p=0" "${trimmedPath}"`, { encoding: 'utf-8' }).trim());
+
+        let speedFactor = 1.0;
+        let filterAudio = 'anull';
+        if (fitAudioSpeed && aDur > vDur && vDur > 0) {
+          speedFactor = aDur / vDur;
+          if (speedFactor > 2.0) {
+            filterAudio = `atempo=2.0,atempo=${(speedFactor / 2.0).toFixed(4)}`;
+          } else if (speedFactor < 0.5) {
+            filterAudio = `atempo=0.5,atempo=${(speedFactor / 0.5).toFixed(4)}`;
+          } else {
+            filterAudio = `atempo=${speedFactor.toFixed(4)}`;
+          }
+        }
+
+        let videoHasAudio = false;
+        try {
+          const audioProbe = execSync(`ffprobe -v error -select_streams a -show_entries stream=codec_type -of default=noprint_wrappers=1:nokey=1 "${videoFile}"`, { encoding: 'utf-8' }).trim();
+          videoHasAudio = audioProbe.length > 0;
+        } catch (_) {}
+
+        const bgMusicFile = path.join(ROOT_DIR, 'assets', 'music', 'Ogryzek.mp3');
+        const hasBgMusic = Boolean(withMusic) && fs.existsSync(bgMusicFile);
+
+        const finalName = lang === 'pt' ? 'final.mp4' : `final_${lang}.mp4`;
+        const finalFile = path.join(folderPath, finalName);
+
+        let cmdMerge = '';
+        if (keepOriginalAudio && videoHasAudio) {
+          if (hasBgMusic) {
+            const filter = `[0:a]volume=0.30[orig_a];[1:a]${filterAudio},volume=1.00[voice];[2:a]volume=0.13[bg];[orig_a][voice][bg]amix=inputs=3:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+            cmdMerge = `ffmpeg -y -i "${videoFile}" -i "${trimmedPath}" -stream_loop -1 -i "${bgMusicFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
+          } else {
+            const filter = `[0:a]volume=0.30[orig_a];[1:a]${filterAudio},volume=1.00[voice];[orig_a][voice]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+            cmdMerge = `ffmpeg -y -i "${videoFile}" -i "${trimmedPath}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
+          }
+        } else {
+          if (hasBgMusic) {
+            const filter = `[1:a]${filterAudio},volume=1.00[voice];[2:a]volume=0.14[bg];[voice][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+            cmdMerge = `ffmpeg -y -i "${videoFile}" -i "${trimmedPath}" -stream_loop -1 -i "${bgMusicFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
+          } else {
+            const filter = `[1:a]${filterAudio},aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+            cmdMerge = `ffmpeg -y -i "${videoFile}" -i "${trimmedPath}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
+          }
+        }
+        execSync(cmdMerge, { stdio: 'inherit' });
+        if (lang === 'pt') {
+          try { fs.copyFileSync(finalFile, path.join(folderPath, 'final_pt.mp4')); } catch (_) {}
+        }
+
+        // Etapa 5: Render 4:5 -> 9:16 Full HD + Legendas
+        const subName = lang === 'pt' ? 'legendas.ass' : `legendas_${lang}.ass`;
+        const out9x16Name = lang === 'pt' ? 'video_9x16.mp4' : `video_9x16_${lang}.mp4`;
+        const subFile = path.join(folderPath, subName);
+        const output9x16 = path.join(folderPath, out9x16Name);
+        const subScript = path.join(ROOT_DIR, 'scripts', 'generate-subtitles.py');
+
+        execSync(`"${PYTHON_BIN}" "${subScript}" "${finalFile}" "${subFile}" "${lang}"`, { stdio: 'inherit' });
+        if (lang === 'pt') {
+          try { fs.copyFileSync(subFile, path.join(folderPath, 'legendas_pt.ass')); } catch (_) {}
+        }
+
+        const subEscaped = subFile.replace(/\\/g, '/').replace(/:/g, '\\:');
+        const filterParts = [
+          `[0:v]scale=1920:1920,crop=1080:1920,avgblur=sizeX=45:sizeY=45,eq=brightness=-0.35:contrast=0.90[bg]`,
+          `[0:v]crop='min(iw,ih*4/5)':'min(ih,iw*5/4)':(iw-ow)/2:(ih-oh)/2,scale=1080:1350[fg]`,
+          `[bg][fg]overlay=0:285[v_comp]`,
+          `[v_comp]subtitles='${subEscaped}'[outv]`
+        ];
+        const filterComplex = filterParts.join(';');
+
+        execSync(`ffmpeg -y -i "${finalFile}" -filter_complex "${filterComplex}" -map "[outv]" -map 0:a? -c:v libx264 -preset fast -crf 19 -movflags +faststart -c:a aac -b:a 192k -ar 44100 "${output9x16}"`, { stdio: 'inherit' });
+
+        if (lang === 'pt') {
+          try {
+            fs.copyFileSync(output9x16, path.join(folderPath, 'video_9x16_pt.mp4'));
+            fs.copyFileSync(output9x16, path.join(folderPath, 'video_9x16_crop_quadrado.mp4'));
+            fs.copyFileSync(output9x16, path.join(folderPath, 'video_1x1_legendado.mp4'));
+          } catch (_) {}
+        }
+
+        try {
+          execSync(`ffmpeg -y -ss 00:00:05 -i "${output9x16}" -vframes 1 -q:v 2 "${path.join(folderPath, `final_val_5s_${lang}.jpg`)}"`, { stdio: 'ignore' });
+          execSync(`ffmpeg -y -ss 00:00:20 -i "${output9x16}" -vframes 1 -q:v 2 "${path.join(folderPath, `final_val_20s_${lang}.jpg`)}"`, { stdio: 'ignore' });
+          if (lang === 'pt') {
+            execSync(`ffmpeg -y -ss 00:00:05 -i "${output9x16}" -vframes 1 -q:v 2 "${path.join(folderPath, 'final_val_5s.jpg')}"`, { stdio: 'ignore' });
+            execSync(`ffmpeg -y -ss 00:00:20 -i "${output9x16}" -vframes 1 -q:v 2 "${path.join(folderPath, 'final_val_20s.jpg')}"`, { stdio: 'ignore' });
+          }
+        } catch (_) {}
+
+        try {
+          await generatePostCopyForProject(project, lang);
+        } catch (_) {}
+
+        return sendJson(res, 200, {
+          success: true,
+          project,
+          lang,
+          audioUrl: `/media/${project}/${trimmedFileName}?t=${Date.now()}`,
+          mergedUrl: `/media/${project}/${finalName}?t=${Date.now()}`,
+          video9x16Url: `/media/${project}/${out9x16Name}?t=${Date.now()}`,
+          projectDetails: getProjectDetails(project)
+        });
+      } catch (err) {
+        console.error('[Manual Run All Error]', err);
+        return sendJson(res, 500, { error: 'Erro ao executar fluxo completo do Estúdio Manual', detail: err.message });
+      }
+    }
     if (pathname === '/api/open-folder' && req.method === 'POST') {
       const { project } = await parseBody(req);
       const folderPath = project ? path.join(VIDEOS_DIR, project) : VIDEOS_DIR;

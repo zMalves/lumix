@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%236d5ef5'/%3E%3Cstop offset='.55' stop-color='%239b3cf0'/%3E%3Cstop offset='1' stop-color='%23d946ef'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='9' fill='url(%23g)'/%3E%3Cpath d='M17.6 5.5 8.6 17.4h5.4l-1.6 9.1 9.3-12.1h-5.5z' fill='white'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="tokens.css?v=3.0.0">
-  <link rel="stylesheet" href="style.css?v=3.0.0">
+  <link rel="stylesheet" href="tokens.css?v=3.1.0">
+  <link rel="stylesheet" href="style.css?v=3.1.0">
 </head>
 <body>
   <!-- Símbolo da marca LUMIX (raio). Fonte única: usar <use href="#lumix-mark"/> em qualquer lugar. -->
@@ -79,6 +79,14 @@
           </span>
           <span class="nav-item-text">Projetos</span>
           <span class="badge-count" id="projects-count" style="margin-left: auto;">0</span>
+        </button>
+
+        <button class="nav-item-btn" data-tab="tab-manual" id="menu-btn-manual">
+          <span class="nav-item-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 4 4 4-10 10H6v-4L16 4Z"/><path d="m14 6 4 4"/><circle cx="6" cy="18" r="2"/></svg>
+          </span>
+          <span class="nav-item-text">Estúdio Manual</span>
+          <span class="badge-count" style="margin-left: auto; background: var(--brand-100); color: var(--brand-700); font-weight: 700;">Autoral</span>
         </button>
 
         </div>
@@ -934,6 +942,256 @@
         </div>
       </section>
 
+      <!-- ABA: ESTÚDIO MANUAL (VÍDEOS AUTORAIS 4:5 -> 9:16) -->
+      <section class="tab-content" id="tab-manual">
+        <!-- Barra de Destaque / Ação 1-Clique -->
+        <div class="card manual-hero-card" style="margin-bottom: 1.25rem;">
+          <div class="manual-hero-header">
+            <div>
+              <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.25rem;">
+                <span class="card-step-badge" style="background: var(--brand-100); color: var(--brand-700);">Vídeos Autorais</span>
+                <span class="badge-count" style="background: var(--surface-subtle); color: var(--text-muted);">Canvas 1080×1920 (9:16) · Enquadramento 4:5</span>
+              </div>
+              <h2 style="margin:0; font-size: 1.35rem; font-weight: 700;">Estúdio Manual Autoral</h2>
+              <p class="text-muted" style="margin: 0.35rem 0 0; font-size: 0.88rem;">
+                Fluxo dedicado para os seus vídeos próprios: envie seu vídeo em 4:5 (ou 9:16 com auto-crop), digite o roteiro, gere narração neural fluida sem pausas, sincronize trilha sonora e exporte em Full HD 9:16 com bordas borradas e legendas dinâmicas.
+              </p>
+            </div>
+            <div class="manual-hero-actions">
+              <button type="button" class="btn btn-primary btn-lg" id="btn-manual-run-all" style="white-space: nowrap;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:18px;height:18px;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                <span>Processar Vídeo Completo (1 Clique)</span>
+              </button>
+            </div>
+          </div>
+          <div id="manual-run-progress" class="manual-progress-wrap" style="display:none; margin-top:1rem;">
+            <div class="manual-progress-bar"><div class="manual-progress-fill" id="manual-progress-bar-inner" style="width: 0%;"></div></div>
+            <span class="manual-progress-text" id="manual-progress-status">Iniciando processamento...</span>
+          </div>
+        </div>
+
+        <!-- Grid de Etapas -->
+        <div class="manual-steps-grid">
+
+          <!-- ETAPA 1: VÍDEO BASE -->
+          <div class="card manual-step-card" id="card-step-manual-video">
+            <div class="card-header">
+              <div class="header-left">
+                <span class="card-step-badge">Etapa 1</span>
+                <h3>Vídeo Base (4:5 ou 9:16)</h3>
+              </div>
+              <span class="badge-count" id="badge-manual-video-status">Aguardando Vídeo</span>
+            </div>
+            <div class="manual-card-body">
+              <div class="manual-dropzone" id="manual-dropzone">
+                <input type="file" id="manual-file-input" accept="video/mp4,video/quicktime,video/webm,video/*" style="display:none;">
+                <div class="dropzone-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:36px;height:36px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                </div>
+                <div class="dropzone-text">
+                  <strong>Arraste seu arquivo de vídeo aqui</strong> ou <span class="dropzone-link">clique para selecionar do computador</span>
+                </div>
+                <span class="text-muted" style="font-size:0.78rem;">Suporta MP4, MOV, WebM (Proporção 4:5 ou 9:16)</span>
+              </div>
+
+              <div style="margin-top: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+                <span class="text-muted" style="font-size: 0.8rem; white-space: nowrap;">Ou escolha da biblioteca:</span>
+                <select id="manual-project-select" class="form-select" style="font-size: 0.82rem; padding: 4px 8px;">
+                  <option value="">-- Selecionar Projeto Existente --</option>
+                </select>
+              </div>
+
+              <!-- Opção Áudio do Vídeo -->
+              <div class="manual-option-box" style="margin-top: 0.85rem;">
+                <label class="form-checkbox-label">
+                  <input type="checkbox" id="manual-keep-audio">
+                  <span style="font-weight: 500;">Manter áudio original do vídeo</span>
+                </label>
+                <div class="text-muted" style="font-size: 0.76rem; margin-top: 2px; padding-left: 1.5rem;">
+                  Se desmarcado (recomendado se o vídeo for mudo ou se quiser silenciá-lo), o áudio original será totalmente removido. Se marcado, o som original é mixado ao fundo a 30% do volume.
+                </div>
+              </div>
+
+              <!-- Preview do Vídeo Carregado -->
+              <div id="manual-video-preview-wrap" style="display:none; margin-top: 0.85rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
+                  <span class="text-muted" style="font-size:0.78rem;" id="manual-video-meta">Duração: -- | Resolução: --</span>
+                  <span class="badge-count" id="manual-video-audio-badge">Áudio Original</span>
+                </div>
+                <video id="manual-video-preview" controls style="width: 100%; max-height: 240px; border-radius: var(--radius-md); background: #000;"></video>
+              </div>
+            </div>
+          </div>
+
+          <!-- ETAPA 2: ROTEIRO & NARRAÇÃO -->
+          <div class="card manual-step-card" id="card-step-manual-voice">
+            <div class="card-header">
+              <div class="header-left">
+                <span class="card-step-badge">Etapa 2</span>
+                <h3>Roteiro & Narração Neural</h3>
+              </div>
+              <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <select id="manual-lang-select" class="form-select" style="font-size: 0.82rem; padding: 3px 8px; font-weight: 600;">
+                  <option value="pt" selected>🇧🇷 Português (PT)</option>
+                  <option value="es">🇪🇸 Espanhol (ES)</option>
+                  <option value="en">🇺🇸 Inglês (EN)</option>
+                </select>
+                <span class="badge-count" id="badge-manual-voice-status">Pendente</span>
+              </div>
+            </div>
+            <div class="manual-card-body">
+              <label for="manual-script-text" class="text-muted" style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 4px;">
+                Digite ou cole o roteiro da narração:
+              </label>
+              <textarea id="manual-script-text" rows="5" class="form-textarea" placeholder="Ex: Este é um dos maiores mistérios do fundo dos oceanos. Em 1997, um som inexplicável foi captado por hidrofones a mais de cinco mil quilômetros de distância..." style="width: 100%; font-family: inherit; font-size: 0.88rem; line-height: 1.45;"></textarea>
+              <div style="display:flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                <span class="text-muted" style="font-size: 0.76rem;" id="manual-script-count">0 caracteres</span>
+                <button type="button" class="btn btn-primary" id="btn-manual-generate-voice">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+                  <span>Gerar Narração Neural</span>
+                </button>
+              </div>
+
+              <!-- Player Áudio Raw -->
+              <div id="manual-raw-audio-wrap" style="display: none; margin-top: 0.85rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                  <span class="text-muted" style="font-size:0.78rem;">Áudio Gerado (MiniMax TTS):</span>
+                  <span class="text-muted" style="font-size:0.78rem;" id="manual-raw-audio-duration">--</span>
+                </div>
+                <audio id="manual-raw-audio-player" controls style="width: 100%; height: 38px;"></audio>
+              </div>
+            </div>
+          </div>
+
+          <!-- ETAPA 3: CORTES NA NARRAÇÃO -->
+          <div class="card manual-step-card" id="card-step-manual-trim">
+            <div class="card-header">
+              <div class="header-left">
+                <span class="card-step-badge">Etapa 3</span>
+                <h3>Cortes & Ritmo Dinâmico</h3>
+              </div>
+              <span class="badge-count" id="badge-manual-trim-status">Pendente</span>
+            </div>
+            <div class="manual-card-body">
+              <p class="text-muted" style="font-size: 0.82rem; margin: 0 0 0.75rem;">
+                Remove automaticamente pausas mortas e silêncios entre as frases para garantir o ritmo acelerado e retenção máxima nos Shorts.
+              </p>
+              <button type="button" class="btn btn-secondary" id="btn-manual-trim-silence" style="width: 100%; justify-content: center;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+                <span>Cortar Silêncios da Narração</span>
+              </button>
+
+              <!-- Player Áudio Trimmed -->
+              <div id="manual-trimmed-audio-wrap" style="display: none; margin-top: 0.85rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                  <span class="text-muted" style="font-size:0.78rem;">Narração Otimizada (Dinâmica):</span>
+                  <span class="text-muted" style="font-size:0.78rem; font-weight: 600; color: var(--on-dark-success);" id="manual-trimmed-stats">--</span>
+                </div>
+                <audio id="manual-trimmed-audio-player" controls style="width: 100%; height: 38px;"></audio>
+              </div>
+            </div>
+          </div>
+
+          <!-- ETAPA 4: SINCRONIZAÇÃO & TRILHA SONORA -->
+          <div class="card manual-step-card" id="card-step-manual-merge">
+            <div class="card-header">
+              <div class="header-left">
+                <span class="card-step-badge">Etapa 4</span>
+                <h3>Sincronização & Trilha Sonora</h3>
+              </div>
+              <span class="badge-count" id="badge-manual-merge-status">Pendente</span>
+            </div>
+            <div class="manual-card-body">
+              <!-- Checkboxes Trilha e Aceleração -->
+              <div class="manual-option-box" style="margin-bottom: 0.75rem;">
+                <label class="form-checkbox-label">
+                  <input type="checkbox" id="manual-with-music" checked>
+                  <span style="font-weight: 500;">Adicionar música de fundo (Ogryzek)</span>
+                </label>
+                <div class="text-muted" style="font-size: 0.76rem; margin-top: 2px; padding-left: 1.5rem;">
+                  Trilha sonora suave a 13% do volume para preencher a dinâmica sem encobrir a voz.
+                </div>
+              </div>
+
+              <div class="manual-option-box" style="margin-bottom: 0.75rem;">
+                <label class="form-checkbox-label">
+                  <input type="checkbox" id="manual-fit-audio" checked>
+                  <span style="font-weight: 500;">Ajustar velocidade do áudio para sincronizar com o vídeo</span>
+                </label>
+                <div class="text-muted" style="font-size: 0.76rem; margin-top: 2px; padding-left: 1.5rem;">
+                  Se a narração for mais longa que o vídeo, acelera proporcionalmente via atempo para terminar junto ao vídeo.
+                </div>
+              </div>
+
+              <button type="button" class="btn btn-primary" id="btn-manual-merge" style="width: 100%; justify-content: center;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="m9 18 6-6-6-6"/><circle cx="12" cy="12" r="10"/></svg>
+                <span>Mesclar Narração + Vídeo + Trilha</span>
+              </button>
+
+              <div id="manual-merged-preview-wrap" style="display: none; margin-top: 0.85rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                  <span class="text-muted" style="font-size:0.78rem;">Prévia Sincronizada:</span>
+                  <span class="text-muted" style="font-size:0.78rem;" id="manual-merged-meta">--</span>
+                </div>
+                <video id="manual-merged-preview" controls style="width: 100%; max-height: 220px; border-radius: var(--radius-md); background: #000;"></video>
+              </div>
+            </div>
+          </div>
+
+          <!-- ETAPA 5: MASTER 4:5 PARA 9:16 FULL HD & LEGENDAS -->
+          <div class="card manual-step-card manual-step-card-master" id="card-step-manual-master" style="grid-column: 1 / -1;">
+            <div class="card-header">
+              <div class="header-left">
+                <span class="card-step-badge" style="background: var(--on-dark-success); color: #fff;">Etapa 5 · Master Final</span>
+                <h3>Enquadramento 4:5 para 9:16 Full HD & Legendas Dinâmicas</h3>
+              </div>
+              <span class="badge-count" id="badge-manual-master-status">Pendente</span>
+            </div>
+            <div class="manual-card-body">
+              <div style="display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; align-items: start;">
+                <div>
+                  <div class="manual-info-callout" style="padding: 0.85rem 1rem; border-radius: var(--radius-md); background: var(--surface-subtle); border: 1px solid var(--border-subtle); margin-bottom: 1rem;">
+                    <strong style="display:block; margin-bottom: 0.25rem;">Padrão Visual Autoral:</strong>
+                    <ul style="margin: 0; padding-left: 1.25rem; font-size: 0.82rem; color: var(--text-muted); line-height: 1.45;">
+                      <li>Vídeo centralizado na proporção 4:5 Full HD (1080×1350 px).</li>
+                      <li>Bordas superior e inferior (285px cada) com preenchimento desfocado e opacidade reduzida.</li>
+                      <li>Legendas dinâmicas palavra por palavra sincronizadas via Whisper.</li>
+                      <li><strong>Sem distorções anti-hash</strong> (sem zoom forçado, sem espelhamento horizontal, sem alteração de tom ou velocidade).</li>
+                    </ul>
+                  </div>
+
+                  <button type="button" class="btn btn-primary btn-lg" id="btn-manual-render" style="width: 100%; justify-content: center; margin-bottom: 1rem;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:18px;height:18px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    <span>Gerar Vídeo Master 9:16 Full HD</span>
+                  </button>
+
+                  <div id="manual-final-actions" style="display:none; flex-direction: column; gap: 0.75rem;">
+                    <div style="display:flex; gap: 0.75rem;">
+                      <a id="btn-manual-download" class="btn btn-secondary" style="flex:1; justify-content:center; text-decoration:none;" download>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        <span>Baixar Vídeo (MP4)</span>
+                      </a>
+                      <button type="button" class="btn btn-danger" id="btn-manual-send-youtube" style="flex:1; justify-content:center;">
+                        <svg viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                        <span>Publicar no YouTube</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="manual-final-player-column" style="display:flex; flex-direction:column; align-items:center;">
+                  <span class="text-muted" style="font-size:0.78rem; margin-bottom: 6px;">Visualização 9:16 Full HD (1080×1920)</span>
+                  <div class="manual-vertical-container" style="width: 200px; height: 355px; border-radius: var(--radius-lg); overflow: hidden; background: #000; box-shadow: var(--shadow-lg); border: 2px solid var(--border-subtle); display:flex; align-items:center; justify-content:center;">
+                    <video id="manual-final-player" controls playsinline style="width: 100%; height: 100%; object-fit: contain;"></video>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
       <!-- ABA 4: PROJETOS (GERENCIAMENTO COMPLETO DE TODOS OS PROJETOS NO DISCO) -->
       <section class="tab-content" id="tab-projects">
         <div class="card" style="margin-bottom: 1.5rem;">
@@ -1660,6 +1918,6 @@
   <!-- Toast de Notificações -->
   <div id="toast-stack" class="toast-stack" role="status" aria-live="polite"></div>
 
-  <script src="app.js?v=3.0.0"></script>
+  <script src="app.js?v=3.1.0"></script>
 </body>
 </html>

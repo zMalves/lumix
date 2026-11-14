@@ -163,7 +163,8 @@ function showToast(message, durationOrType = 3500, maybeType) {
 const PAGE_META = {
   'tab-search':   ['Produção', 'Pesquisa'],
   'tab-queue':    ['Produção', 'Fila'],
-  'tab-pipeline': ['Produção', 'Estúdio'],
+  'tab-pipeline': ['Produção', 'Estúdio IA'],
+  'tab-manual':   ['Produção', 'Estúdio Manual'],
   'tab-projects': ['Produção', 'Projetos'],
   'tab-youtube':  ['Publicação', 'YouTube'],
   'tab-metrics':  ['Publicação', 'Métricas'],
@@ -225,6 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
   checkSystemStatus();
   loadProjects();
   loadYouTubeChannelsView();
+  initManualStudio();
 
   // Se a URL pedir a aba do YouTube
   if (window.location.hash.includes('tab-youtube')) {
@@ -701,6 +703,11 @@ function setupTabs() {
       // Se navegou para YouTube, carrega dados dos canais
       if (targetTab === 'tab-youtube') {
         loadYouTubeChannelsView();
+      }
+
+      // Se navegou para Estúdio Manual, carrega lista de projetos
+      if (targetTab === 'tab-manual') {
+        loadManualProjectsList();
       }
 
       // Se navegou para Métricas, busca as estatísticas no YouTube
@@ -4205,3 +4212,534 @@ window.handleConfirmStudioLangTab = handleConfirmStudioLangTab;
 window.openAddToQueueModal = openAddToQueueModal;
 window.closeAddToQueueModal = closeAddToQueueModal;
 window.confirmAddToQueue = confirmAddToQueue;
+
+// ==========================================================================
+// ESTÚDIO MANUAL: VÍDEOS AUTORAIS (4:5 -> 9:16)
+// ==========================================================================
+let manualState = {
+  project: null,
+  videoUrl: null,
+  duration: 0,
+  width: 0,
+  height: 0,
+  hasOriginalAudio: false,
+  rawAudioUrl: null,
+  trimmedAudioUrl: null,
+  mergedVideoUrl: null,
+  finalVideoUrl: null,
+  lang: 'pt'
+};
+
+async function loadManualProjectsList() {
+  const sel = document.getElementById('manual-project-select');
+  if (!sel) return;
+  try {
+    const res = await fetch('/api/projects');
+    const projects = await res.json();
+    const currentVal = sel.value;
+    sel.innerHTML = '<option value="">-- Selecionar Projeto Existente --</option>';
+    if (Array.isArray(projects)) {
+      projects.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.name;
+        opt.textContent = `${p.info?.title || p.name}`;
+        sel.appendChild(opt);
+      });
+    }
+    if (currentVal) sel.value = currentVal;
+  } catch (_) {}
+}
+
+function updateManualStatusBadges() {
+  const bVideo = document.getElementById('badge-manual-video-status');
+  const bVoice = document.getElementById('badge-manual-voice-status');
+  const bTrim = document.getElementById('badge-manual-trim-status');
+  const bMerge = document.getElementById('badge-manual-merge-status');
+  const bMaster = document.getElementById('badge-manual-master-status');
+
+  if (bVideo) {
+    if (manualState.project) {
+      bVideo.textContent = 'Vídeo Pronto';
+      bVideo.className = 'badge-count success';
+    } else {
+      bVideo.textContent = 'Aguardando Vídeo';
+      bVideo.className = 'badge-count';
+    }
+  }
+
+  if (bVoice) {
+    if (manualState.rawAudioUrl) {
+      bVoice.textContent = 'Narração Gerada';
+      bVoice.className = 'badge-count success';
+    } else {
+      bVoice.textContent = 'Pendente';
+      bVoice.className = 'badge-count';
+    }
+  }
+
+  if (bTrim) {
+    if (manualState.trimmedAudioUrl) {
+      bTrim.textContent = 'Silêncios Cortados';
+      bTrim.className = 'badge-count success';
+    } else {
+      bTrim.textContent = 'Pendente';
+      bTrim.className = 'badge-count';
+    }
+  }
+
+  if (bMerge) {
+    if (manualState.mergedVideoUrl) {
+      bMerge.textContent = 'Mesclado';
+      bMerge.className = 'badge-count success';
+    } else {
+      bMerge.textContent = 'Pendente';
+      bMerge.className = 'badge-count';
+    }
+  }
+
+  if (bMaster) {
+    if (manualState.finalVideoUrl) {
+      bMaster.textContent = 'Master 9:16 Pronto';
+      bMaster.className = 'badge-count success';
+    } else {
+      bMaster.textContent = 'Pendente';
+      bMaster.className = 'badge-count';
+    }
+  }
+}
+
+function initManualStudio() {
+  const dropzone = document.getElementById('manual-dropzone');
+  const fileInput = document.getElementById('manual-file-input');
+  const projectSelect = document.getElementById('manual-project-select');
+  const scriptText = document.getElementById('manual-script-text');
+  const scriptCount = document.getElementById('manual-script-count');
+  const langSelect = document.getElementById('manual-lang-select');
+  const keepAudioCb = document.getElementById('manual-keep-audio');
+  const withMusicCb = document.getElementById('manual-with-music');
+  const fitAudioCb = document.getElementById('manual-fit-audio');
+
+  const btnVoice = document.getElementById('btn-manual-generate-voice');
+  const btnTrim = document.getElementById('btn-manual-trim-silence');
+  const btnMerge = document.getElementById('btn-manual-merge');
+  const btnRender = document.getElementById('btn-manual-render');
+  const btnRunAll = document.getElementById('btn-manual-run-all');
+  const btnDownload = document.getElementById('btn-manual-download');
+  const btnSendYouTube = document.getElementById('btn-manual-send-youtube');
+
+  if (!dropzone) return;
+
+  // Dropzone click & drag
+  dropzone.addEventListener('click', () => fileInput?.click());
+  ['dragenter', 'dragover'].forEach(evt => {
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzone.classList.add('drag-active');
+    });
+  });
+  ['dragleave', 'drop'].forEach(evt => {
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzone.classList.remove('drag-active');
+    });
+  });
+
+  dropzone.addEventListener('drop', (e) => {
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0) {
+      handleManualFileUpload(files[0]);
+    }
+  });
+
+  fileInput?.addEventListener('change', () => {
+    if (fileInput.files && fileInput.files.length > 0) {
+      handleManualFileUpload(fileInput.files[0]);
+    }
+  });
+
+  async function handleManualFileUpload(file) {
+    if (!file || !file.type.startsWith('video/')) {
+      return showToast('Por favor, envie um arquivo de vídeo (MP4, MOV, WebM).', 'warning');
+    }
+
+    showToast(`Enviando vídeo "${file.name}"...`, 'info');
+    dropzone.classList.add('uploading');
+
+    try {
+      const res = await fetch(`/api/manual/upload-video?filename=${encodeURIComponent(file.name)}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'x-filename': encodeURIComponent(file.name)
+        },
+        body: file
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Falha no upload do vídeo');
+
+      manualState.project = data.project;
+      manualState.videoUrl = data.videoUrl;
+      manualState.duration = data.duration;
+      manualState.width = data.width;
+      manualState.height = data.height;
+      manualState.hasOriginalAudio = data.hasAudio;
+
+      // Reseta etapas subsequentes
+      manualState.rawAudioUrl = null;
+      manualState.trimmedAudioUrl = null;
+      manualState.mergedVideoUrl = null;
+      manualState.finalVideoUrl = null;
+
+      const previewWrap = document.getElementById('manual-video-preview-wrap');
+      const previewEl = document.getElementById('manual-video-preview');
+      const metaEl = document.getElementById('manual-video-meta');
+      const audioBadge = document.getElementById('manual-video-audio-badge');
+
+      if (previewWrap) previewWrap.style.display = 'block';
+      if (previewEl) {
+        previewEl.src = data.videoUrl;
+        previewEl.load();
+      }
+      if (metaEl) {
+        const aspectStr = data.width && data.height ? `${data.width}×${data.height}` : '--';
+        metaEl.textContent = `Duração: ${data.duration ? data.duration.toFixed(1) + 's' : '--'} | Resolução: ${aspectStr}`;
+      }
+      if (audioBadge) {
+        audioBadge.textContent = data.hasAudio ? 'Áudio detectado' : 'Sem áudio no arquivo';
+        audioBadge.className = data.hasAudio ? 'badge-count success' : 'badge-count';
+      }
+
+      showToast('Vídeo enviado com sucesso!', 'success');
+      loadManualProjectsList();
+      updateManualStatusBadges();
+    } catch (err) {
+      showToast(`Erro no envio: ${err.message}`, 'error');
+    } finally {
+      dropzone.classList.remove('uploading');
+    }
+  }
+
+  // Projeto existente
+  projectSelect?.addEventListener('change', async () => {
+    const selected = projectSelect.value;
+    if (!selected) return;
+
+    try {
+      showToast('Carregando projeto...', 'info');
+      const res = await fetch('/api/manual/select-project', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project: selected })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao carregar projeto');
+
+      manualState.project = data.project;
+      manualState.videoUrl = data.videoUrl;
+      manualState.duration = data.duration;
+      manualState.width = data.width;
+      manualState.height = data.height;
+      manualState.hasOriginalAudio = data.hasAudio;
+
+      const previewWrap = document.getElementById('manual-video-preview-wrap');
+      const previewEl = document.getElementById('manual-video-preview');
+      const metaEl = document.getElementById('manual-video-meta');
+      const audioBadge = document.getElementById('manual-video-audio-badge');
+
+      if (previewWrap) previewWrap.style.display = 'block';
+      if (previewEl) {
+        previewEl.src = data.videoUrl;
+        previewEl.load();
+      }
+      if (metaEl) {
+        const aspectStr = data.width && data.height ? `${data.width}×${data.height}` : '--';
+        metaEl.textContent = `Duração: ${data.duration ? data.duration.toFixed(1) + 's' : '--'} | Resolução: ${aspectStr}`;
+      }
+      if (audioBadge) {
+        audioBadge.textContent = data.hasAudio ? 'Áudio detectado' : 'Sem áudio no arquivo';
+        audioBadge.className = data.hasAudio ? 'badge-count success' : 'badge-count';
+      }
+
+      if (data.existingScript && scriptText && !scriptText.value.trim()) {
+        scriptText.value = data.existingScript;
+        if (scriptCount) scriptCount.textContent = `${data.existingScript.length} caracteres`;
+      }
+
+      showToast(`Projeto "${selected}" carregado no Estúdio Manual!`, 'success');
+      updateManualStatusBadges();
+    } catch (err) {
+      showToast(`Erro ao selecionar: ${err.message}`, 'error');
+    }
+  });
+
+  // Contagem de caracteres do roteiro
+  scriptText?.addEventListener('input', () => {
+    const len = scriptText.value.length;
+    if (scriptCount) scriptCount.textContent = `${len} caracteres`;
+  });
+
+  // Etapa 2: Gerar Narração
+  btnVoice?.addEventListener('click', async () => {
+    if (!manualState.project) return showToast('Envie ou selecione um vídeo primeiro (Etapa 1).', 'warning');
+    const text = scriptText?.value.trim();
+    if (!text) return showToast('Digite ou cole o roteiro de narração.', 'warning');
+    const lang = langSelect?.value || 'pt';
+
+    btnVoice.disabled = true;
+    showToast('Gerando narração neural (MiniMax TTS)...', 'info');
+
+    try {
+      const res = await fetch('/api/manual/generate-narration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project: manualState.project, text, lang, speed: 1.05 })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Falha ao sintetizar narração');
+
+      manualState.rawAudioUrl = data.audioUrl;
+      const audioWrap = document.getElementById('manual-raw-audio-wrap');
+      const audioPlayer = document.getElementById('manual-raw-audio-player');
+      const audioDuration = document.getElementById('manual-raw-audio-duration');
+
+      if (audioWrap) audioWrap.style.display = 'block';
+      if (audioPlayer) {
+        audioPlayer.src = data.audioUrl;
+        audioPlayer.load();
+        audioPlayer.play().catch(() => {});
+      }
+      if (audioDuration) audioDuration.textContent = `Duração: ${data.duration ? data.duration.toFixed(1) + 's' : '--'}`;
+
+      showToast('Narração neural gerada com sucesso!', 'success');
+      updateManualStatusBadges();
+    } catch (err) {
+      showToast(`Erro na narração: ${err.message}`, 'error');
+    } finally {
+      btnVoice.disabled = false;
+    }
+  });
+
+  // Etapa 3: Cortar Silêncios
+  btnTrim?.addEventListener('click', async () => {
+    if (!manualState.project) return showToast('Envie um vídeo primeiro.', 'warning');
+    if (!manualState.rawAudioUrl) return showToast('Gere a narração primeiro (Etapa 2).', 'warning');
+    const lang = langSelect?.value || 'pt';
+
+    btnTrim.disabled = true;
+    showToast('Higienizando áudio e cortando silêncios...', 'info');
+
+    try {
+      const res = await fetch('/api/manual/trim-silence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project: manualState.project, lang, minSilence: 350, keepSilence: 200 })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Falha ao cortar silêncios');
+
+      manualState.trimmedAudioUrl = data.audioUrl;
+      const audioWrap = document.getElementById('manual-trimmed-audio-wrap');
+      const audioPlayer = document.getElementById('manual-trimmed-audio-player');
+      const statsEl = document.getElementById('manual-trimmed-stats');
+
+      if (audioWrap) audioWrap.style.display = 'block';
+      if (audioPlayer) {
+        audioPlayer.src = data.audioUrl;
+        audioPlayer.load();
+        audioPlayer.play().catch(() => {});
+      }
+      if (statsEl) {
+        const pct = data.originalDuration > 0 ? ((data.removedSeconds / data.originalDuration) * 100).toFixed(0) : 0;
+        statsEl.textContent = `${data.originalDuration.toFixed(1)}s ➔ ${data.newDuration.toFixed(1)}s (-${pct}% cortes)`;
+      }
+
+      showToast('Silêncios cortados! Ritmo dinâmico ajustado.', 'success');
+      updateManualStatusBadges();
+    } catch (err) {
+      showToast(`Erro nos cortes: ${err.message}`, 'error');
+    } finally {
+      btnTrim.disabled = false;
+    }
+  });
+
+  // Etapa 4: Mesclar Áudio + Vídeo + Trilha
+  btnMerge?.addEventListener('click', async () => {
+    if (!manualState.project) return showToast('Envie um vídeo primeiro.', 'warning');
+    if (!manualState.trimmedAudioUrl && !manualState.rawAudioUrl) {
+      return showToast('Gere e corte a narração primeiro.', 'warning');
+    }
+
+    const lang = langSelect?.value || 'pt';
+    const keepAudio = Boolean(keepAudioCb?.checked);
+    const withMusic = Boolean(withMusicCb?.checked);
+    const fitAudio = Boolean(fitAudioCb?.checked);
+
+    btnMerge.disabled = true;
+    showToast('Sincronizando áudio, vídeo e trilha sonora...', 'info');
+
+    try {
+      const res = await fetch('/api/manual/merge-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project: manualState.project,
+          lang,
+          keepOriginalAudio: keepAudio,
+          withMusic,
+          fitAudioSpeed: fitAudio
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Falha ao mesclar áudio e vídeo');
+
+      manualState.mergedVideoUrl = data.finalUrl;
+      const mergeWrap = document.getElementById('manual-merged-preview-wrap');
+      const mergePlayer = document.getElementById('manual-merged-preview');
+      const metaEl = document.getElementById('manual-merged-meta');
+
+      if (mergeWrap) mergeWrap.style.display = 'block';
+      if (mergePlayer) {
+        mergePlayer.src = data.finalUrl;
+        mergePlayer.load();
+      }
+      if (metaEl) {
+        const speedText = data.speedFactor && data.speedFactor !== 1.0 ? ` | Aceleração: ${data.speedFactor.toFixed(2)}x` : '';
+        metaEl.textContent = `Duração: ${data.videoDuration.toFixed(1)}s${speedText}`;
+      }
+
+      showToast('Áudio, vídeo e trilha sonora mesclados com sucesso!', 'success');
+      updateManualStatusBadges();
+    } catch (err) {
+      showToast(`Erro na mesclagem: ${err.message}`, 'error');
+    } finally {
+      btnMerge.disabled = false;
+    }
+  });
+
+  // Etapa 5: Master 4:5 para 9:16 Full HD + Legendas
+  btnRender?.addEventListener('click', async () => {
+    if (!manualState.project) return showToast('Envie um vídeo primeiro.', 'warning');
+    if (!manualState.mergedVideoUrl) return showToast('Mescle o áudio e vídeo primeiro (Etapa 4).', 'warning');
+    const lang = langSelect?.value || 'pt';
+
+    btnRender.disabled = true;
+    showToast('Renderizando Master 9:16 Full HD com enquadramento 4:5 e legendas dinâmicas...', 'info', 10000);
+
+    try {
+      const res = await fetch('/api/manual/render-4x5-to-9x16', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project: manualState.project, lang })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Falha ao renderizar master 9:16');
+
+      manualState.finalVideoUrl = data.video9x16Url;
+      const finalPlayer = document.getElementById('manual-final-player');
+      const finalActions = document.getElementById('manual-final-actions');
+      if (finalPlayer) {
+        finalPlayer.src = data.video9x16Url;
+        finalPlayer.load();
+      }
+      if (finalActions) finalActions.style.display = 'flex';
+      if (btnDownload) {
+        btnDownload.href = data.video9x16Url;
+        btnDownload.setAttribute('download', `${manualState.project}_master_9x16.mp4`);
+      }
+
+      showToast('Vídeo Master 9:16 Full HD renderizado com sucesso!', 'success', 6000);
+      updateManualStatusBadges();
+    } catch (err) {
+      showToast(`Erro na renderização: ${err.message}`, 'error');
+    } finally {
+      btnRender.disabled = false;
+    }
+  });
+
+  // Ação 1-Clique: Processar Tudo
+  btnRunAll?.addEventListener('click', async () => {
+    if (!manualState.project) return showToast('Envie ou selecione um vídeo primeiro (Etapa 1).', 'warning');
+    const text = scriptText?.value.trim();
+    if (!text) return showToast('Digite ou cole o roteiro de narração (Etapa 2).', 'warning');
+
+    const lang = langSelect?.value || 'pt';
+    const keepAudio = Boolean(keepAudioCb?.checked);
+    const withMusic = Boolean(withMusicCb?.checked);
+    const fitAudio = Boolean(fitAudioCb?.checked);
+
+    btnRunAll.disabled = true;
+    const progressWrap = document.getElementById('manual-run-progress');
+    const progressBar = document.getElementById('manual-progress-bar-inner');
+    const progressText = document.getElementById('manual-progress-status');
+
+    if (progressWrap) progressWrap.style.display = 'block';
+    if (progressBar) progressBar.style.width = '15%';
+    if (progressText) progressText.textContent = 'Etapa 2/5: Sintetizando narração neural via MiniMax...';
+    showToast('Iniciando pipeline 1-clique do Estúdio Manual...', 'info');
+
+    try {
+      const res = await fetch('/api/manual/run-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project: manualState.project,
+          text,
+          lang,
+          keepOriginalAudio: keepAudio,
+          withMusic,
+          fitAudioSpeed: fitAudio
+        })
+      });
+
+      if (progressBar) progressBar.style.width = '75%';
+      if (progressText) progressText.textContent = 'Etapa 5/5: Enquadrando 4:5 em 9:16 e queimando legendas...';
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro no pipeline 1-clique');
+
+      if (progressBar) progressBar.style.width = '100%';
+      if (progressText) progressText.textContent = 'Vídeo Master 9:16 Full HD concluído com sucesso!';
+
+      manualState.trimmedAudioUrl = data.audioUrl;
+      manualState.mergedVideoUrl = data.mergedUrl;
+      manualState.finalVideoUrl = data.video9x16Url;
+
+      // Update players
+      const finalPlayer = document.getElementById('manual-final-player');
+      const finalActions = document.getElementById('manual-final-actions');
+      if (finalPlayer) {
+        finalPlayer.src = data.video9x16Url;
+        finalPlayer.load();
+      }
+      if (finalActions) finalActions.style.display = 'flex';
+      if (btnDownload) {
+        btnDownload.href = data.video9x16Url;
+        btnDownload.setAttribute('download', `${manualState.project}_master_9x16.mp4`);
+      }
+
+      showToast('Vídeo completo processado com sucesso em 1 clique!', 'success', 7000);
+      updateManualStatusBadges();
+    } catch (err) {
+      if (progressText) progressText.textContent = `Falha: ${err.message}`;
+      showToast(`Erro no pipeline: ${err.message}`, 'error');
+    } finally {
+      btnRunAll.disabled = false;
+    }
+  });
+
+  // Publicar no YouTube
+  btnSendYouTube?.addEventListener('click', () => {
+    if (!manualState.project) return;
+    switchTab('tab-youtube');
+    setTimeout(() => {
+      const ytProjSel = document.getElementById('post-yt-project-select');
+      if (ytProjSel) {
+        ytProjSel.value = manualState.project;
+        ytProjSel.dispatchEvent(new Event('change'));
+      }
+      showToast(`Projeto "${manualState.project}" selecionado para publicação no YouTube!`, 'info');
+    }, 200);
+  });
+}
