@@ -2254,9 +2254,9 @@ Sua missão:
         // Renderização autoral 4:5 centralizado em canvas 1080x1920 (9:16) Full HD com bordas desfocadas (285px cada)
         const subEscaped = subFile.replace(/\\/g, '/').replace(/:/g, '\\:');
         const filterParts = [
-          `[0:v]scale=1920:1920,crop=1080:1920,avgblur=sizeX=45:sizeY=45,eq=brightness=-0.35:contrast=0.90[bg]`,
-          `[0:v]crop='min(iw,ih*4/5)':'min(ih,iw*5/4)':(iw-ow)/2:(ih-oh)/2,scale=1080:1350[fg]`,
-          `[bg][fg]overlay=0:285[v_comp]`,
+          `[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920:(iw-ow)/2:(ih-oh)/2,setsar=1,avgblur=sizeX=45:sizeY=45,eq=brightness=-0.35:contrast=0.90[bg]`,
+          `[0:v]crop='min(iw,ih*4/5)':'min(ih,iw*5/4)':(iw-ow)/2:(ih-oh)/2,scale=1080:1350,setsar=1[fg]`,
+          `[bg][fg]overlay=0:285,setsar=1[v_comp]`,
           `[v_comp]subtitles='${subEscaped}'[outv]`
         ];
         const filterComplex = filterParts.join(';');
@@ -2407,9 +2407,9 @@ Sua missão:
 
         const subEscaped = subFile.replace(/\\/g, '/').replace(/:/g, '\\:');
         const filterParts = [
-          `[0:v]scale=1920:1920,crop=1080:1920,avgblur=sizeX=45:sizeY=45,eq=brightness=-0.35:contrast=0.90[bg]`,
-          `[0:v]crop='min(iw,ih*4/5)':'min(ih,iw*5/4)':(iw-ow)/2:(ih-oh)/2,scale=1080:1350[fg]`,
-          `[bg][fg]overlay=0:285[v_comp]`,
+          `[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920:(iw-ow)/2:(ih-oh)/2,setsar=1,avgblur=sizeX=45:sizeY=45,eq=brightness=-0.35:contrast=0.90[bg]`,
+          `[0:v]crop='min(iw,ih*4/5)':'min(ih,iw*5/4)':(iw-ow)/2:(ih-oh)/2,scale=1080:1350,setsar=1[fg]`,
+          `[bg][fg]overlay=0:285,setsar=1[v_comp]`,
           `[v_comp]subtitles='${subEscaped}'[outv]`
         ];
         const filterComplex = filterParts.join(';');
