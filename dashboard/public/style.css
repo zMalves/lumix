@@ -337,7 +337,7 @@ button { font: inherit; }
 }
 .nav-item-btn:hover .nav-item-icon { transform: translateX(1px) scale(1.06); opacity: 1; }
 .nav-item-btn.active .nav-item-icon { opacity: 1; color: var(--brand-200); }
-.nav-item-text { flex: 1; text-align: left; }
+.nav-item-text { flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .badge-count {
   font-family: var(--font-mono);

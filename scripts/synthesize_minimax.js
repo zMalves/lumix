@@ -14,14 +14,44 @@ if (typeof process.loadEnvFile === 'function') {
   } catch (e) {}
 }
 
-// A chave vem somente do .env (MINIMAX_API_KEY). Nunca coloque o valor literal aqui.
+// A chave vem somente do .env. Nunca coloque o valor literal aqui.
 const MINIMAX_API_KEY = process.env.MINIMAX_API_KEY || '';
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 const DEFAULT_VOICE_ID = process.env.MINIMAX_VOICE_ID || 'moss_audio_7eb5eaa1-d18c-11f1-a1a6-e6b4e5387684';
 
 const ENDPOINTS = [
   'https://api.minimax.io/v1/t2a_v2',
   'https://api.minimaxi.chat/v1/t2a_v2'
 ];
+
+async function callOpenAITTS(text, voice = 'onyx', speed = 1.05) {
+  if (!OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY não configurada no .env');
+  }
+  console.log(`[OpenAI TTS] Chamando síntese OpenAI (Voz: ${voice}, Velocidade: ${speed}, Chars: ${text.length})...`);
+  const res = await fetch('https://api.openai.com/v1/audio/speech', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'tts-1-hd',
+      input: text,
+      voice: voice || 'onyx',
+      speed: Math.max(0.25, Math.min(4.0, parseFloat(speed) || 1.05)),
+      response_format: 'mp3'
+    })
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`OpenAI TTS HTTP ${res.status}: ${errText}`);
+  }
+
+  const arrayBuf = await res.arrayBuffer();
+  return Buffer.from(arrayBuf);
+}
 
 async function callMiniMaxAPI(text, voiceId, speed = 1.05) {
   let lastError = null;
@@ -101,9 +131,6 @@ function splitTextIntoSentences(text, maxLen = 3000) {
 }
 
 async function synthesizeText(inputTextOrPath, outputPath, voiceId = DEFAULT_VOICE_ID, speed = 1.05) {
-  if (!MINIMAX_API_KEY) {
-    throw new Error('MINIMAX_API_KEY não configurada no .env');
-  }
   let text = '';
   if (fs.existsSync(inputTextOrPath)) {
     text = fs.readFileSync(inputTextOrPath, 'utf-8').trim();
@@ -115,21 +142,54 @@ async function synthesizeText(inputTextOrPath, outputPath, voiceId = DEFAULT_VOI
     throw new Error('Texto para síntese está vazio!');
   }
 
-  console.log(`[MiniMax] Iniciando síntese (${text.length} caracteres)...`);
-  const chunks = splitTextIntoSentences(text, 3500);
-  const audioBuffers = [];
+  // 1. Tenta sintetizar via MiniMax TTS (Voz Neural Primária)
+  try {
+    if (!MINIMAX_API_KEY) {
+      throw new Error('MINIMAX_API_KEY não configurada no .env');
+    }
 
-  for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i];
-    console.log(`[MiniMax] Processando bloco ${i + 1}/${chunks.length} (${chunk.length} chars)...`);
-    const audioBuf = await callMiniMaxAPI(chunk, voiceId, speed);
-    audioBuffers.push(audioBuf);
+    console.log(`[MiniMax] Iniciando síntese (${text.length} caracteres)...`);
+    const chunks = splitTextIntoSentences(text, 3500);
+    const audioBuffers = [];
+
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      console.log(`[MiniMax] Processando bloco ${i + 1}/${chunks.length} (${chunk.length} chars)...`);
+      const audioBuf = await callMiniMaxAPI(chunk, voiceId, speed);
+      audioBuffers.push(audioBuf);
+    }
+
+    const combined = Buffer.concat(audioBuffers);
+    fs.writeFileSync(outputPath, combined);
+    console.log(`[MiniMax] Sucesso! Áudio salvo em: ${outputPath} (${combined.length} bytes)`);
+    return outputPath;
+  } catch (minimaxErr) {
+    console.warn(`[Aviso MiniMax] ${minimaxErr.message}`);
+
+    // 2. Fallback automático para OpenAI TTS (HD) se houver falha de créditos ou rede na MiniMax
+    if (OPENAI_API_KEY) {
+      console.log(`[TTS Fallback] Acionando OpenAI TTS (Modelo tts-1-hd, Voz onyx)...`);
+      try {
+        const chunks = splitTextIntoSentences(text, 4000);
+        const audioBuffers = [];
+
+        for (let i = 0; i < chunks.length; i++) {
+          const chunk = chunks[i];
+          const audioBuf = await callOpenAITTS(chunk, 'onyx', speed);
+          audioBuffers.push(audioBuf);
+        }
+
+        const combined = Buffer.concat(audioBuffers);
+        fs.writeFileSync(outputPath, combined);
+        console.log(`[OpenAI TTS] Sucesso! Áudio salvo em: ${outputPath} (${combined.length} bytes) [Fallback ativo]`);
+        return outputPath;
+      } catch (openaiErr) {
+        throw new Error(`Falha em ambos os provedores TTS. MiniMax: ${minimaxErr.message} | OpenAI: ${openaiErr.message}`);
+      }
+    }
+
+    throw minimaxErr;
   }
-
-  const combined = Buffer.concat(audioBuffers);
-  fs.writeFileSync(outputPath, combined);
-  console.log(`[MiniMax] Sucesso! Áudio salvo em: ${outputPath} (${combined.length} bytes)`);
-  return outputPath;
 }
 
 if (require.main === module) {
