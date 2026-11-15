@@ -334,7 +334,7 @@ async function runAutoPilot(inputTarget, options = {}) {
     // ETAPA 5: SÍNTESE DE VOZ NEURAL (MiniMax TTS)
     const shouldTts = startStepNum <= 4 || !fs.existsSync(rawAudio);
     if (shouldTts) {
-      const minimaxVoice = resolveVoiceId(lang, process.env.MINIMAX_VOICE_ID || 'lumix_custom_voice');
+      const minimaxVoice = resolveVoiceId(lang, process.env.MINIMAX_VOICE_ID || 'moss_audio_3698a500-e112-11f1-92f1-163db804a819');
       log('VOZ', `Sintetizando locução ultra-realista via MiniMax API a 1.3x (${lang.toUpperCase()}, Voz: ${minimaxVoice})...`);
       const minimaxScript = path.join(ROOT_DIR, 'scripts', 'synthesize_minimax.js');
       execSync(`"${process.execPath}" "${minimaxScript}" "${translatedFile}" "${rawAudio}" "${minimaxVoice}" 1.3`, { stdio: 'inherit' });

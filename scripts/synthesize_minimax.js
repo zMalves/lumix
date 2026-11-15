@@ -17,7 +17,7 @@ if (typeof process.loadEnvFile === 'function') {
 // A chave vem somente do .env. Nunca coloque o valor literal aqui.
 const MINIMAX_API_KEY = process.env.MINIMAX_API_KEY || '';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
-const DEFAULT_VOICE_ID = process.env.MINIMAX_VOICE_ID || 'lumix_custom_voice';
+const DEFAULT_VOICE_ID = process.env.MINIMAX_VOICE_ID || 'moss_audio_3698a500-e112-11f1-92f1-163db804a819';
 
 const ENDPOINTS = [
   'https://api.minimax.io/v1/t2a_v2',

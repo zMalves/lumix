@@ -684,7 +684,7 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, {
         minimax: {
           online: !!process.env.MINIMAX_API_KEY,
-          voiceId: process.env.MINIMAX_VOICE_ID || 'lumix_custom_voice'
+          voiceId: process.env.MINIMAX_VOICE_ID || 'moss_audio_3698a500-e112-11f1-92f1-163db804a819'
         },
         voiceStudio: {
           online: voiceStudioOnline,
@@ -1126,7 +1126,7 @@ const server = http.createServer(async (req, res) => {
         hasOpenai: !!process.env.OPENAI_API_KEY,
         minimaxKey: process.env.MINIMAX_API_KEY || '',
         hasMinimax: !!process.env.MINIMAX_API_KEY,
-        minimaxVoiceId: process.env.MINIMAX_VOICE_ID || 'lumix_custom_voice',
+        minimaxVoiceId: process.env.MINIMAX_VOICE_ID || 'moss_audio_3698a500-e112-11f1-92f1-163db804a819',
         minimaxVoiceIdEs: process.env.MINIMAX_VOICE_ID_ES || 'moss_audio_cfe8feff-e110-11f1-85b0-1a2aa8b64369',
         minimaxVoiceIdEn: process.env.MINIMAX_VOICE_ID_EN || 'moss_audio_7057baaa-e111-11f1-8c36-4ef8da7daf14',
         voicestudioUrl: process.env.VOICESTUDIO_URL || 'http://127.0.0.1:3900',
@@ -1589,7 +1589,7 @@ Sua missão:
         return sendJson(res, 400, { error: 'Nenhum texto para síntese de áudio' });
       }
 
-      const minimaxVoice = voice || resolveVoiceId(lang, process.env.MINIMAX_VOICE_ID || 'lumix_custom_voice');
+      const minimaxVoice = voice || resolveVoiceId(lang, process.env.MINIMAX_VOICE_ID || 'moss_audio_3698a500-e112-11f1-92f1-163db804a819');
       const minimaxScript = path.join(ROOT_DIR, 'scripts', 'synthesize_minimax.js');
       const tempTxt = path.join(folderPath, `temp_input_${lang}.txt`);
       const audioPath = path.join(folderPath, audioFileName);
@@ -2054,7 +2054,7 @@ Sua missão:
       const folderPath = path.join(VIDEOS_DIR, project);
       if (!fs.existsSync(folderPath)) return sendJson(res, 404, { error: 'Pasta do projeto não encontrada' });
 
-      const voiceId = resolveVoiceId(lang, process.env.MINIMAX_VOICE_ID || 'lumix_custom_voice');
+      const voiceId = resolveVoiceId(lang, process.env.MINIMAX_VOICE_ID || 'moss_audio_3698a500-e112-11f1-92f1-163db804a819');
       const minimaxScript = path.join(ROOT_DIR, 'scripts', 'synthesize_minimax.js');
 
       const scriptFile = lang === 'pt' ? 'roteiro_traduzido.txt' : `roteiro_traduzido_${lang}.txt`;
@@ -2340,7 +2340,7 @@ Sua missão:
 
       try {
         // Etapa 2: Narração
-        const voiceId = resolveVoiceId(lang, process.env.MINIMAX_VOICE_ID || 'lumix_custom_voice');
+        const voiceId = resolveVoiceId(lang, process.env.MINIMAX_VOICE_ID || 'moss_audio_3698a500-e112-11f1-92f1-163db804a819');
         const minimaxScript = path.join(ROOT_DIR, 'scripts', 'synthesize_minimax.js');
         const scriptFile = lang === 'pt' ? 'roteiro_traduzido.txt' : `roteiro_traduzido_${lang}.txt`;
         fs.writeFileSync(path.join(folderPath, scriptFile), text.trim(), 'utf-8');
