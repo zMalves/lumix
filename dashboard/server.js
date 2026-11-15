@@ -2224,7 +2224,7 @@ Sua missão:
 
     // 5. Etapa final: 4:5 para 9:16 Full HD com bordas desfocadas + opacidade reduzida + legendas (Sem anti-hash)
     if (pathname === '/api/manual/render-4x5-to-9x16' && req.method === 'POST') {
-      const { project, lang = 'pt' } = await parseBody(req);
+      const { project, lang = 'pt', useBaseVideo = false } = await parseBody(req);
       if (!project) return sendJson(res, 400, { error: 'Nome do projeto necessário' });
       const folderPath = path.join(VIDEOS_DIR, project);
       if (!fs.existsSync(folderPath)) return sendJson(res, 404, { error: 'Pasta do projeto não encontrada' });
@@ -2233,11 +2233,26 @@ Sua missão:
       const subName = lang === 'pt' ? 'legendas.ass' : `legendas_${lang}.ass`;
       const out9x16Name = lang === 'pt' ? 'video_9x16.mp4' : `video_9x16_${lang}.mp4`;
 
-      const inputVid = fs.existsSync(path.join(folderPath, finalName))
-        ? path.join(folderPath, finalName)
-        : (fs.existsSync(path.join(folderPath, 'final.mp4'))
-            ? path.join(folderPath, 'final.mp4')
-            : path.join(folderPath, 'original.mp4'));
+      const baseVideo = fs.existsSync(path.join(folderPath, 'sem_marca.mp4'))
+        ? path.join(folderPath, 'sem_marca.mp4')
+        : (fs.existsSync(path.join(folderPath, 'original.mp4'))
+            ? path.join(folderPath, 'original.mp4')
+            : null);
+
+      let inputVid = null;
+      if (useBaseVideo) {
+        inputVid = baseVideo;
+      } else if (fs.existsSync(path.join(folderPath, finalName))) {
+        inputVid = path.join(folderPath, finalName);
+      } else if (fs.existsSync(path.join(folderPath, 'final.mp4'))) {
+        inputVid = path.join(folderPath, 'final.mp4');
+      } else {
+        inputVid = baseVideo;
+      }
+
+      if (!inputVid || !fs.existsSync(inputVid)) {
+        return sendJson(res, 400, { error: 'Nenhum vídeo original ou final encontrado na pasta do projeto' });
+      }
 
       const subFile = path.join(folderPath, subName);
       const output9x16 = path.join(folderPath, out9x16Name);

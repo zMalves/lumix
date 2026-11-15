@@ -161,13 +161,13 @@ function showToast(message, durationOrType = 3500, maybeType) {
 // CONTEXTO DO CABEÇALHO — mostra em qual seção o usuário está
 // --------------------------------------------------------------------------
 const PAGE_META = {
-  'tab-search':   ['Produção', 'Pesquisa'],
-  'tab-queue':    ['Produção', 'Fila'],
+  'tab-search': ['Produção', 'Pesquisa'],
+  'tab-queue': ['Produção', 'Fila'],
   'tab-pipeline': ['Produção', 'Estúdio IA'],
-  'tab-manual':   ['Produção', 'Estúdio Manual'],
+  'tab-manual': ['Produção', 'Estúdio Manual'],
   'tab-projects': ['Produção', 'Projetos'],
-  'tab-youtube':  ['Publicação', 'YouTube'],
-  'tab-metrics':  ['Publicação', 'Métricas'],
+  'tab-youtube': ['Publicação', 'YouTube'],
+  'tab-metrics': ['Publicação', 'Métricas'],
   'tab-settings': ['Sistema', 'Configurações'],
 };
 
@@ -199,7 +199,7 @@ function updateGlobalMusicUI() {
   }
 }
 
-window.toggleGlobalMusic = function() {
+window.toggleGlobalMusic = function () {
   globalWithMusic = !globalWithMusic;
   localStorage.setItem('lumix_with_music', globalWithMusic ? 'true' : 'false');
   updateGlobalMusicUI();
@@ -250,7 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
       switchTab('tab-youtube');
       window.history.replaceState({}, document.title, window.location.pathname + '#tab-youtube');
     }
-  } catch (e) {}
+  } catch (e) { }
 
   // Eventos do YouTube Studio
   const headerYtBtn = document.getElementById('header-youtube-btn');
@@ -736,7 +736,7 @@ function syncUrlState() {
       url.searchParams.set('lang', activeStudioTab || 'base');
     }
     window.history.replaceState(window.history.state, '', url.toString());
-  } catch (_) {}
+  } catch (_) { }
 }
 
 function switchTab(tabId) {
@@ -858,7 +858,7 @@ function truncateText(str, maxLen = 28) {
 // MODAL UNIVERSAL DE CONFIRMAÇÃO & CAIXAS DE DIÁLOGO LUMIX
 // Substitui confirm() e alert() nativos do navegador por modais modernos
 // --------------------------------------------------------------------------
-window.showConfirmDialog = function({
+window.showConfirmDialog = function ({
   title = 'Confirmação',
   message = 'Tem certeza que deseja prosseguir?',
   confirmText = 'Confirmar',
@@ -951,7 +951,7 @@ window.showConfirmDialog = function({
 };
 
 // Modal de Prompt e Cópia de Link Estilizado
-window.showPromptDialog = function({
+window.showPromptDialog = function ({
   title = 'Copiar Link',
   message = 'Copie o link abaixo:',
   value = ''
@@ -1014,7 +1014,7 @@ window.showPromptDialog = function({
 // --------------------------------------------------------------------------
 // CUSTOM STATUS DROPDOWN HANDLERS (TABELA E ESTÚDIO)
 // --------------------------------------------------------------------------
-window.toggleStatusDropdown = function(projectName, triggerBtn, event) {
+window.toggleStatusDropdown = function (projectName, triggerBtn, event) {
   if (event) event.stopPropagation();
   const parent = triggerBtn.closest('.custom-status-dropdown');
   const menu = parent ? parent.querySelector('.status-dropdown-menu') : document.getElementById(`status-menu-${projectName}`);
@@ -1209,15 +1209,15 @@ async function loadVideoMetrics() {
     if (langs) {
       langs.innerHTML = (data.byLang || []).length
         ? data.byLang.map(l => {
-            const meta = (typeof LANG_METADATA !== 'undefined' && LANG_METADATA[l.lang]) || { label: l.lang.toUpperCase(), flag: '🌐' };
-            return `
+          const meta = (typeof LANG_METADATA !== 'undefined' && LANG_METADATA[l.lang]) || { label: l.lang.toUpperCase(), flag: '🌐' };
+          return `
               <div class="metrics-lang-card">
                 <div class="metrics-lang-title">${meta.flag || ''} ${escMetric(meta.label)}</div>
                 <div class="metrics-lang-row"><span>Vídeos</span><strong>${fmtMetric(l.videos)}</strong></div>
                 <div class="metrics-lang-row"><span>Views</span><strong>${fmtMetric(l.views)}</strong></div>
                 <div class="metrics-lang-row"><span>Likes</span><strong>${fmtMetric(l.likes)}</strong></div>
               </div>`;
-          }).join('')
+        }).join('')
         : '<div class="metrics-empty">Nenhum vídeo publicado com registro no YouTube ainda.</div>';
     }
 
@@ -1235,7 +1235,7 @@ async function loadVideoMetrics() {
 }
 
 // Marca/desmarca um idioma como postado (clique no selo da coluna Idiomas)
-window.toggleLanguagePosted = async function(projectName, lang) {
+window.toggleLanguagePosted = async function (projectName, lang) {
   try {
     const res = await fetch('/api/projects/toggle-language', {
       method: 'POST',
@@ -1257,7 +1257,7 @@ window.toggleLanguagePosted = async function(projectName, lang) {
   }
 };
 
-window.selectProjectStatusOption = async function(projectName, newStatus) {
+window.selectProjectStatusOption = async function (projectName, newStatus) {
   document.querySelectorAll('.status-dropdown-menu').forEach(m => m.classList.add('hidden'));
   document.querySelectorAll('.custom-status-dropdown').forEach(d => d.classList.remove('open'));
   if (newStatus === 'posted') {
@@ -1410,7 +1410,7 @@ async function selectProject(name) {
     const rawTitle = project.info && project.info.title ? project.info.title : project.name.replace(/_/g, ' ');
     const displayName = truncateText(rawTitle, 28);
     const videoId = (project.info && project.info.id) ? project.info.id : ('VID-' + project.name.slice(0, 6).toUpperCase());
-    
+
     if (pipelineProjectTitle) {
       pipelineProjectTitle.textContent = displayName;
       pipelineProjectTitle.title = rawTitle; // Tooltip com título integral
@@ -1603,7 +1603,7 @@ async function handleSearch(e) {
       card.className = 'video-card' + (item.alreadyExists ? ' card-already-produced' : '');
       const formattedViews = item.viewsRaw ? item.viewsRaw : `${Number(item.views || 0).toLocaleString('pt-BR')} views`;
       const durSec = item.duration || 45;
-      const formattedDuration = durSec >= 60 
+      const formattedDuration = durSec >= 60
         ? `${Math.floor(durSec / 60)}:${(durSec % 60).toString().padStart(2, '0')}`
         : `${durSec}s`;
 
@@ -1624,9 +1624,9 @@ async function handleSearch(e) {
           </h4>
           <div class="video-card-meta">
             <span class="views-tag" style="background:rgba(249,38,114,0.12); color:var(--color-code-rose); font-weight:600; font-family:var(--font-mono); border:1px solid rgba(249,38,114,0.25);">🔥 ${formattedViews}</span>
-            ${item.alreadyExists 
-              ? `<span style="font-size:0.72rem; color:var(--color-emerald-ok); font-family:var(--font-mono); background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.3); padding:2px 6px; border-radius:4px;">✅ Já Produzido</span>` 
-              : `<span style="font-size:0.72rem; color:var(--color-ash-text); font-family:var(--font-mono);">⚡ Inédito</span>`}
+            ${item.alreadyExists
+          ? `<span style="font-size:0.72rem; color:var(--color-emerald-ok); font-family:var(--font-mono); background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.3); padding:2px 6px; border-radius:4px;">✅ Já Produzido</span>`
+          : `<span style="font-size:0.72rem; color:var(--color-ash-text); font-family:var(--font-mono);">⚡ Inédito</span>`}
           </div>
           <div style="font-size:0.75rem; color:var(--color-fog-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:0.25rem;">
             👤 ${escapeHtml(item.channel || 'YouTube Shorts')}
@@ -1671,25 +1671,25 @@ async function handleSearch(e) {
 }
 
 // Funções acionadas por índice a partir da grade de pesquisa (100% à prova de quebra de caracteres)
-window.openAddToQueueFromSearch = function(index) {
+window.openAddToQueueFromSearch = function (index) {
   const item = currentSearchResults[index];
   if (!item) return;
   openAddToQueueModal(item.url, item.title, item.thumbnail, index);
 };
 
-window.startAutoPilotFromSearch = function(index) {
+window.startAutoPilotFromSearch = function (index) {
   const item = currentSearchResults[index];
   if (!item) return;
   startAutoPilot(item.url);
 };
 
-window.downloadFromSearch = function(index) {
+window.downloadFromSearch = function (index) {
   const item = currentSearchResults[index];
   if (!item) return;
   downloadSelected(item.url, item.title);
 };
 
-window.openProjectInStudioFromSearch = function(index) {
+window.openProjectInStudioFromSearch = function (index) {
   const item = currentSearchResults[index];
   if (!item || !item.existingFolder) return;
   openProjectInStudio(item.existingFolder);
@@ -1697,10 +1697,10 @@ window.openProjectInStudioFromSearch = function(index) {
 
 async function downloadSelected(targetUrl, targetTitle) {
   let url = targetUrl || '';
-  try { if (url.includes('%')) url = decodeURIComponent(url); } catch (_) {}
+  try { if (url.includes('%')) url = decodeURIComponent(url); } catch (_) { }
 
   let title = targetTitle || 'Short Viral';
-  try { if (title.includes('%')) title = decodeURIComponent(title); } catch (_) {}
+  try { if (title.includes('%')) title = decodeURIComponent(title); } catch (_) { }
 
   showToast(`Iniciando download de "${title.slice(0, 30)}..."`);
   try {
@@ -1805,7 +1805,7 @@ async function handleRunVmake() {
           vmakeJobStatus.style.color = 'var(--accent-danger)';
           showToast('A automação do VMake falhou. Veja o log.');
         }
-      } catch (err) {}
+      } catch (err) { }
     }, 2000);
 
   } catch (err) {
@@ -2238,7 +2238,7 @@ function renderPostCopy(project, forceOverwriteInputs = false) {
   copy.titles.forEach((title, idx) => {
     const row = document.createElement('div');
     row.style = 'display:flex; justify-content:space-between; align-items:center; gap:0.6rem; background:var(--color-obsidian-surface); border:1px solid var(--color-carbon-border); border-radius:var(--radius-sm); padding:0.65rem 0.95rem;';
-    
+
     const isRec = copy.recommendedTitle === title || idx === 0;
     row.innerHTML = `
       <div style="font-size:0.86rem; color:var(--color-frost-white); display:flex; align-items:center; gap:0.5rem; flex:1; word-break:break-word;">
@@ -2334,13 +2334,13 @@ let queuePollingTimer = null;
 
 async function addToQueue(targetUrl, targetTitle, targetThumb, languages = null, withMusic = null) {
   let url = targetUrl || '';
-  try { if (url.includes('%')) url = decodeURIComponent(url); } catch (_) {}
+  try { if (url.includes('%')) url = decodeURIComponent(url); } catch (_) { }
 
   let title = targetTitle || 'Short Viral';
-  try { if (title.includes('%')) title = decodeURIComponent(title); } catch (_) {}
+  try { if (title.includes('%')) title = decodeURIComponent(title); } catch (_) { }
 
   let thumbnail = targetThumb || '';
-  try { if (thumbnail.includes('%')) thumbnail = decodeURIComponent(thumbnail); } catch (_) {}
+  try { if (thumbnail.includes('%')) thumbnail = decodeURIComponent(thumbnail); } catch (_) { }
 
   if (!url) return showToast('URL inválida para adicionar à fila');
 
@@ -2373,13 +2373,13 @@ async function addToQueue(targetUrl, targetTitle, targetThumb, languages = null,
 
 function openAddToQueueModal(urlOrEncoded, titleOrEncoded, thumbOrEncoded, searchIndex = null) {
   let url = urlOrEncoded || '';
-  try { if (url.includes('%')) url = decodeURIComponent(url); } catch (_) {}
+  try { if (url.includes('%')) url = decodeURIComponent(url); } catch (_) { }
 
   let title = titleOrEncoded || 'Short Viral';
-  try { if (title.includes('%')) title = decodeURIComponent(title); } catch (_) {}
+  try { if (title.includes('%')) title = decodeURIComponent(title); } catch (_) { }
 
   let thumbnail = thumbOrEncoded || '';
-  try { if (thumbnail.includes('%')) thumbnail = decodeURIComponent(thumbnail); } catch (_) {}
+  try { if (thumbnail.includes('%')) thumbnail = decodeURIComponent(thumbnail); } catch (_) { }
 
   pendingQueueItem = { url, title, thumbnail, searchIndex };
 
@@ -2562,7 +2562,7 @@ function renderQueueUI(data) {
       runningSlotsContainer.style.display = 'flex';
       runningSlotsContainer.innerHTML = activeList.map((item, idx) => `
         <div style="display:flex; align-items:center; gap:0.75rem; background:rgba(255,255,255,0.03); border:1px solid rgba(184,140,255,0.25); border-radius:8px; padding:0.6rem 0.85rem;">
-          <span style="font-family:var(--font-mono); font-size:0.75rem; font-weight:700; color:var(--color-ultraviolet-key); background:rgba(184,140,255,0.15); padding:2px 6px; border-radius:4px;">Slot ${idx+1}</span>
+          <span style="font-family:var(--font-mono); font-size:0.75rem; font-weight:700; color:var(--color-ultraviolet-key); background:rgba(184,140,255,0.15); padding:2px 6px; border-radius:4px;">Slot ${idx + 1}</span>
           <div style="flex:1; min-width:0;">
             <div style="font-size:0.85rem; font-weight:600; color:var(--color-frost-white); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item.title || item.target}</div>
             <div style="font-size:0.75rem; color:var(--color-ultraviolet-key); font-family:var(--font-mono);">${item.currentStep || 'Processando...'} (${item.progress || 0}%)</div>
@@ -3055,7 +3055,7 @@ function filterAndDisplayProjects() {
       const langName = l.toUpperCase();
       const langData = p.languages && p.languages[l];
       const hasVideo = langData ? (langData.urls?.vertical9x16 || langData.urls?.final) : (l === 'pt' && (p.hasVertical9x16 || p.hasFinal));
-      
+
       const isThisPosted = postedLangs.includes(l);
       const ytUrl = (p.info?.youtubeUploads && p.info.youtubeUploads[l]?.url) || (l === 'pt' && p.info?.youtube?.url) || null;
 
@@ -3177,7 +3177,7 @@ function filterAndDisplayProjects() {
   }).join('');
 }
 
-window.changeProjectStatus = async function(projectName, newStatus) {
+window.changeProjectStatus = async function (projectName, newStatus) {
   try {
     const res = await fetch('/api/projects/update-meta', {
       method: 'POST',
@@ -3473,7 +3473,7 @@ async function deleteProject(projectName) {
 window.copyToClipboard = copyToClipboard;
 
 // Copia o ID do projeto para a área de transferência
-window.copyProjectIdToClipboard = function() {
+window.copyProjectIdToClipboard = function () {
   if (!currentProject) return;
   const videoId = (currentProject.info && currentProject.info.id) || ('VID-' + currentProject.name.slice(0, 6).toUpperCase());
   navigator.clipboard.writeText(videoId).then(() => {
@@ -3484,7 +3484,7 @@ window.copyProjectIdToClipboard = function() {
 };
 
 // Copia URL com parâmetros únicos do projeto (?project=...&id=...)
-window.copyProjectShareUrl = function() {
+window.copyProjectShareUrl = function () {
   if (!currentProject) return showToast('Selecione um projeto primeiro.');
   const videoId = (currentProject.info && currentProject.info.id) || ('VID-' + currentProject.name.slice(0, 6).toUpperCase());
   const url = new URL(window.location.origin + window.location.pathname);
@@ -3576,7 +3576,7 @@ window.closeRerunModal = closeRerunModal;
 window.switchTab = switchTab;
 window.renderProjectsGallery = renderProjectsGallery;
 window.openFolder = openFolder;
-window.openProjectInStudio = function(folderName) {
+window.openProjectInStudio = function (folderName) {
   selectProject(folderName);
   switchTab('tab-pipeline');
 };
@@ -3681,7 +3681,7 @@ async function loadYouTubeChannelsView() {
         const originalName = escapeHtml(c.name || '');
         const handle = escapeHtml(c.customUrl || '@' + (c.name || '').toLowerCase().replace(/\s+/g, ''));
         const avatar = c.avatar || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72"><rect width="72" height="72" fill="%23222"/></svg>';
-        
+
         return `
           <div class="channel-card" style="background:var(--color-obsidian-surface); border:1px solid var(--color-carbon-border); border-radius:var(--radius-cards); padding:1.5rem; display:flex; flex-direction:column; gap:1.25rem; box-shadow:0 8px 24px rgba(0,0,0,0.25);">
             <!-- Linha Superior: Avatar, Nomes e Edição de Apelido -->
@@ -3806,7 +3806,7 @@ async function refreshAllYouTubeMetrics() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ channelId: c.id })
       });
-    } catch (e) {}
+    } catch (e) { }
   }
   showToast('Todos os canais foram sincronizados!', 3000);
   loadYouTubeChannelsView();
@@ -4026,9 +4026,9 @@ function renderStudioLangTabs(project) {
     const langData = project && project.languages && project.languages[lang];
     const isReady = langData && (langData.urls?.vertical9x16 || langData.urls?.final || (lang === 'pt' && (project.hasVertical9x16 || project.hasFinal)));
     const isPostedLang = (project.postedLanguages && project.postedLanguages.includes(lang)) ||
-                         (langData && langData.isPosted) ||
-                         (project.info?.youtubeUploads && project.info.youtubeUploads[lang]) ||
-                         (lang === 'pt' && (project.status === 'posted' || project.info?.status === 'posted' || project.info?.youtube));
+      (langData && langData.isPosted) ||
+      (project.info?.youtubeUploads && project.info.youtubeUploads[lang]) ||
+      (lang === 'pt' && (project.status === 'posted' || project.info?.status === 'posted' || project.info?.youtube));
 
     let badgeText = 'Pendente';
     let badgeBg = '#f1f5f9';
@@ -4248,7 +4248,7 @@ async function loadManualProjectsList() {
       });
     }
     if (currentVal) sel.value = currentVal;
-  } catch (_) {}
+  } catch (_) { }
 }
 
 function updateManualStatusBadges() {
@@ -4509,7 +4509,7 @@ function initManualStudio() {
       if (audioPlayer) {
         audioPlayer.src = data.audioUrl;
         audioPlayer.load();
-        audioPlayer.play().catch(() => {});
+        audioPlayer.play().catch(() => { });
       }
       if (audioDuration) audioDuration.textContent = `Duração: ${data.duration ? data.duration.toFixed(1) + 's' : '--'}`;
 
@@ -4549,7 +4549,7 @@ function initManualStudio() {
       if (audioPlayer) {
         audioPlayer.src = data.audioUrl;
         audioPlayer.load();
-        audioPlayer.play().catch(() => {});
+        audioPlayer.play().catch(() => { });
       }
       if (statsEl) {
         const pct = data.originalDuration > 0 ? ((data.removedSeconds / data.originalDuration) * 100).toFixed(0) : 0;
@@ -4621,18 +4621,25 @@ function initManualStudio() {
 
   // Etapa 5: Master 4:5 para 9:16 Full HD + Legendas
   btnRender?.addEventListener('click', async () => {
-    if (!manualState.project) return showToast('Envie um vídeo primeiro.', 'warning');
-    if (!manualState.mergedVideoUrl) return showToast('Mescle o áudio e vídeo primeiro (Etapa 4).', 'warning');
+    if (!manualState.project) return showToast('Envie ou selecione um vídeo primeiro (Etapa 1).', 'warning');
+    const isUsingBase = !manualState.mergedVideoUrl;
     const lang = langSelect?.value || 'pt';
 
     btnRender.disabled = true;
-    showToast('Renderizando Master 9:16 Full HD com enquadramento 4:5 e legendas dinâmicas...', 'info', 10000);
+    const infoMsg = isUsingBase
+      ? 'Renderizando Master 9:16 a partir do vídeo base com legendas dinâmicas...'
+      : 'Renderizando Master 9:16 Full HD com enquadramento 4:5 e legendas dinâmicas...';
+    showToast(infoMsg, 'info', 10000);
 
     try {
       const res = await fetch('/api/manual/render-4x5-to-9x16', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ project: manualState.project, lang })
+        body: JSON.stringify({
+          project: manualState.project,
+          lang,
+          useBaseVideo: isUsingBase
+        })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Falha ao renderizar master 9:16');
@@ -4650,7 +4657,10 @@ function initManualStudio() {
         btnDownload.setAttribute('download', `${manualState.project}_master_9x16.mp4`);
       }
 
-      showToast('Vídeo Master 9:16 Full HD renderizado com sucesso!', 'success', 6000);
+      const successMsg = isUsingBase
+        ? 'Vídeo Master 9:16 Full HD renderizado com sucesso a partir do vídeo base!'
+        : 'Vídeo Master 9:16 Full HD renderizado com sucesso!';
+      showToast(successMsg, 'success', 6000);
       updateManualStatusBadges();
     } catch (err) {
       showToast(`Erro na renderização: ${err.message}`, 'error');
@@ -4663,7 +4673,15 @@ function initManualStudio() {
   btnRunAll?.addEventListener('click', async () => {
     if (!manualState.project) return showToast('Envie ou selecione um vídeo primeiro (Etapa 1).', 'warning');
     const text = scriptText?.value.trim();
-    if (!text) return showToast('Digite ou cole o roteiro de narração (Etapa 2).', 'warning');
+    if (!text) {
+      const confirmBase = confirm('Nenhum roteiro digitado para nova narração. Deseja renderizar o Vídeo Master 9:16 diretamente usando o vídeo original e sua narração atual?');
+      if (confirmBase) {
+        btnRender?.click();
+      } else {
+        showToast('Digite ou cole o roteiro de narração para gerar novo áudio neural.', 'warning');
+      }
+      return;
+    }
 
     const lang = langSelect?.value || 'pt';
     const keepAudio = Boolean(keepAudioCb?.checked);
