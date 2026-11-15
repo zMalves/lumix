@@ -684,7 +684,7 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, {
         minimax: {
           online: !!process.env.MINIMAX_API_KEY,
-          voiceId: process.env.MINIMAX_VOICE_ID || 'moss_audio_7eb5eaa1-d18c-11f1-a1a6-e6b4e5387684'
+          voiceId: process.env.MINIMAX_VOICE_ID || 'lumix_custom_voice'
         },
         voiceStudio: {
           online: voiceStudioOnline,
@@ -1126,7 +1126,8 @@ const server = http.createServer(async (req, res) => {
         hasOpenai: !!process.env.OPENAI_API_KEY,
         minimaxKey: process.env.MINIMAX_API_KEY || '',
         hasMinimax: !!process.env.MINIMAX_API_KEY,
-        minimaxVoiceId: process.env.MINIMAX_VOICE_ID || 'moss_audio_7eb5eaa1-d18c-11f1-a1a6-e6b4e5387684',
+        minimaxVoiceId: process.env.MINIMAX_VOICE_ID || 'lumix_custom_voice',
+        minimaxVoiceIdEs: process.env.MINIMAX_VOICE_ID_ES || 'moss_audio_cfe8feff-e110-11f1-85b0-1a2aa8b64369',
         voicestudioUrl: process.env.VOICESTUDIO_URL || 'http://127.0.0.1:3900',
         vmakeAk: process.env.VMAKE_AK || process.env.MT_AK || '',
         vmakeSk: process.env.VMAKE_SK || process.env.MT_SK || '',
@@ -1136,7 +1137,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (pathname === '/api/settings/save' && req.method === 'POST') {
-      const { openaiKey, minimaxKey, minimaxVoiceId, voicestudioUrl, vmakeAk, vmakeSk, vmakeTask } = await parseBody(req);
+      const { openaiKey, minimaxKey, minimaxVoiceId, minimaxVoiceIdEs, voicestudioUrl, vmakeAk, vmakeSk, vmakeTask } = await parseBody(req);
       const envPath = path.join(ROOT_DIR, '.env');
       let envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf-8') : '';
 
@@ -1165,6 +1166,12 @@ const server = http.createServer(async (req, res) => {
         const cleanVoice = minimaxVoiceId.trim();
         envContent = updateEnvVar(envContent, 'MINIMAX_VOICE_ID', cleanVoice);
         process.env.MINIMAX_VOICE_ID = cleanVoice;
+      }
+
+      if (typeof minimaxVoiceIdEs === 'string' && minimaxVoiceIdEs.trim()) {
+        const cleanVoice = minimaxVoiceIdEs.trim();
+        envContent = updateEnvVar(envContent, 'MINIMAX_VOICE_ID_ES', cleanVoice);
+        process.env.MINIMAX_VOICE_ID_ES = cleanVoice;
       }
 
       if (typeof voicestudioUrl === 'string' && voicestudioUrl.trim()) {
@@ -1575,7 +1582,7 @@ Sua missão:
         return sendJson(res, 400, { error: 'Nenhum texto para síntese de áudio' });
       }
 
-      const minimaxVoice = voice || resolveVoiceId(lang, process.env.MINIMAX_VOICE_ID || 'moss_audio_7eb5eaa1-d18c-11f1-a1a6-e6b4e5387684');
+      const minimaxVoice = voice || resolveVoiceId(lang, process.env.MINIMAX_VOICE_ID || 'lumix_custom_voice');
       const minimaxScript = path.join(ROOT_DIR, 'scripts', 'synthesize_minimax.js');
       const tempTxt = path.join(folderPath, `temp_input_${lang}.txt`);
       const audioPath = path.join(folderPath, audioFileName);
@@ -2040,7 +2047,7 @@ Sua missão:
       const folderPath = path.join(VIDEOS_DIR, project);
       if (!fs.existsSync(folderPath)) return sendJson(res, 404, { error: 'Pasta do projeto não encontrada' });
 
-      const voiceId = resolveVoiceId(lang, process.env.MINIMAX_VOICE_ID || 'moss_audio_7eb5eaa1-d18c-11f1-a1a6-e6b4e5387684');
+      const voiceId = resolveVoiceId(lang, process.env.MINIMAX_VOICE_ID || 'lumix_custom_voice');
       const minimaxScript = path.join(ROOT_DIR, 'scripts', 'synthesize_minimax.js');
 
       const scriptFile = lang === 'pt' ? 'roteiro_traduzido.txt' : `roteiro_traduzido_${lang}.txt`;
@@ -2326,7 +2333,7 @@ Sua missão:
 
       try {
         // Etapa 2: Narração
-        const voiceId = resolveVoiceId(lang, process.env.MINIMAX_VOICE_ID || 'moss_audio_7eb5eaa1-d18c-11f1-a1a6-e6b4e5387684');
+        const voiceId = resolveVoiceId(lang, process.env.MINIMAX_VOICE_ID || 'lumix_custom_voice');
         const minimaxScript = path.join(ROOT_DIR, 'scripts', 'synthesize_minimax.js');
         const scriptFile = lang === 'pt' ? 'roteiro_traduzido.txt' : `roteiro_traduzido_${lang}.txt`;
         fs.writeFileSync(path.join(folderPath, scriptFile), text.trim(), 'utf-8');

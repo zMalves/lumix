@@ -21,19 +21,23 @@ const EN_POST_COPY_SYSTEM = 'You are an elite viral copywriter for short vertica
 
 const VOICE_ENV = {
   pt: 'MINIMAX_VOICE_ID',
-  es: 'MINIMAX_VOICE_ID',
+  es: 'MINIMAX_VOICE_ID_ES',
   en: 'MINIMAX_VOICE_ID_EN'
 };
 
 /**
  * Retorna o voice_id da MiniMax para o idioma.
- * Para 'en', se MINIMAX_VOICE_ID_EN não existir, cai na voz padrão (que costuma ser PT).
+ * Se houver uma variável de ambiente específica (ex: MINIMAX_VOICE_ID_ES, MINIMAX_VOICE_ID_EN),
+ * ela é priorizada. Caso contrário, recai na voz padrão (geralmente PT).
  */
 function resolveVoiceId(lang, defaultVoice) {
   const envName = VOICE_ENV[lang];
   if (envName && process.env[envName]) return process.env[envName];
-  if (lang === 'en') {
+  if (lang === 'en' && !process.env.MINIMAX_VOICE_ID_EN) {
     console.warn('[LANG] MINIMAX_VOICE_ID_EN não configurada no .env; usando a voz padrão para inglês (pode soar com sotaque).');
+  }
+  if (lang === 'es' && !process.env.MINIMAX_VOICE_ID_ES) {
+    console.warn('[LANG] MINIMAX_VOICE_ID_ES não configurada no .env; usando a voz padrão para espanhol.');
   }
   return defaultVoice;
 }

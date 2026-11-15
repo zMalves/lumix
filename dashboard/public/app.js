@@ -2807,6 +2807,9 @@ async function loadSettingsForm() {
     const elMinimaxVoice = document.getElementById('setting-minimax-voice');
     if (elMinimaxVoice) elMinimaxVoice.value = data.minimaxVoiceId || '';
 
+    const elMinimaxVoiceEs = document.getElementById('setting-minimax-voice-es');
+    if (elMinimaxVoiceEs) elMinimaxVoiceEs.value = data.minimaxVoiceIdEs || '';
+
     const elVoiceUrl = document.getElementById('setting-voicestudio-url');
     if (elVoiceUrl) elVoiceUrl.value = data.voicestudioUrl || '';
 
@@ -2868,6 +2871,7 @@ async function handleSaveSettings() {
   const openaiKey = document.getElementById('setting-openai-key') ? document.getElementById('setting-openai-key').value.trim() : '';
   const minimaxKey = document.getElementById('setting-minimax-key') ? document.getElementById('setting-minimax-key').value.trim() : '';
   const minimaxVoiceId = document.getElementById('setting-minimax-voice') ? document.getElementById('setting-minimax-voice').value.trim() : '';
+  const minimaxVoiceIdEs = document.getElementById('setting-minimax-voice-es') ? document.getElementById('setting-minimax-voice-es').value.trim() : '';
   const voicestudioUrl = document.getElementById('setting-voicestudio-url') ? document.getElementById('setting-voicestudio-url').value.trim() : '';
   const vmakeAk = document.getElementById('setting-vmake-ak') ? document.getElementById('setting-vmake-ak').value.trim() : '';
   const vmakeSk = document.getElementById('setting-vmake-sk') ? document.getElementById('setting-vmake-sk').value.trim() : '';
@@ -2881,6 +2885,7 @@ async function handleSaveSettings() {
         openaiKey,
         minimaxKey,
         minimaxVoiceId,
+        minimaxVoiceIdEs,
         voicestudioUrl,
         vmakeAk,
         vmakeSk,
