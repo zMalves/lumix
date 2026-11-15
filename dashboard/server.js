@@ -1128,6 +1128,7 @@ const server = http.createServer(async (req, res) => {
         hasMinimax: !!process.env.MINIMAX_API_KEY,
         minimaxVoiceId: process.env.MINIMAX_VOICE_ID || 'lumix_custom_voice',
         minimaxVoiceIdEs: process.env.MINIMAX_VOICE_ID_ES || 'moss_audio_cfe8feff-e110-11f1-85b0-1a2aa8b64369',
+        minimaxVoiceIdEn: process.env.MINIMAX_VOICE_ID_EN || 'moss_audio_7057baaa-e111-11f1-8c36-4ef8da7daf14',
         voicestudioUrl: process.env.VOICESTUDIO_URL || 'http://127.0.0.1:3900',
         vmakeAk: process.env.VMAKE_AK || process.env.MT_AK || '',
         vmakeSk: process.env.VMAKE_SK || process.env.MT_SK || '',
@@ -1137,7 +1138,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (pathname === '/api/settings/save' && req.method === 'POST') {
-      const { openaiKey, minimaxKey, minimaxVoiceId, minimaxVoiceIdEs, voicestudioUrl, vmakeAk, vmakeSk, vmakeTask } = await parseBody(req);
+      const { openaiKey, minimaxKey, minimaxVoiceId, minimaxVoiceIdEs, minimaxVoiceIdEn, voicestudioUrl, vmakeAk, vmakeSk, vmakeTask } = await parseBody(req);
       const envPath = path.join(ROOT_DIR, '.env');
       let envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf-8') : '';
 
@@ -1172,6 +1173,12 @@ const server = http.createServer(async (req, res) => {
         const cleanVoice = minimaxVoiceIdEs.trim();
         envContent = updateEnvVar(envContent, 'MINIMAX_VOICE_ID_ES', cleanVoice);
         process.env.MINIMAX_VOICE_ID_ES = cleanVoice;
+      }
+
+      if (typeof minimaxVoiceIdEn === 'string' && minimaxVoiceIdEn.trim()) {
+        const cleanVoice = minimaxVoiceIdEn.trim();
+        envContent = updateEnvVar(envContent, 'MINIMAX_VOICE_ID_EN', cleanVoice);
+        process.env.MINIMAX_VOICE_ID_EN = cleanVoice;
       }
 
       if (typeof voicestudioUrl === 'string' && voicestudioUrl.trim()) {
