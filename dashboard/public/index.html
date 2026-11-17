@@ -1007,7 +1007,18 @@
                   <span style="font-weight: 500;">Manter áudio original do vídeo</span>
                 </label>
                 <div class="text-muted" style="font-size: 0.76rem; margin-top: 2px; padding-left: 1.5rem;">
-                  Se desmarcado (recomendado se o vídeo for mudo ou se quiser silenciá-lo), o áudio original será totalmente removido. Se marcado, o som original é mixado ao fundo a 30% do volume.
+                  Se desmarcado (vídeo mudo ou se quiser silenciá-lo), o áudio original será totalmente removido. Se marcado, o som original é preservado.
+                </div>
+
+                <!-- Redução de volume opcional (30%) -->
+                <div id="manual-reduce-volume-wrap" style="margin-top: 0.5rem; padding-left: 1.5rem;">
+                  <label class="form-checkbox-label" style="font-size: 0.82rem; cursor: pointer;">
+                    <input type="checkbox" id="manual-reduce-volume">
+                    <span>Reduzir volume do áudio original para 30% (fundo suave)</span>
+                  </label>
+                  <div class="text-muted" style="font-size: 0.74rem; margin-top: 2px; padding-left: 1.5rem;">
+                    Deixe <strong>desmarcado</strong> para manter o volume original em <strong>100% (volume total)</strong> — ideal quando o vídeo já tem narração ou sons que você quer preservar inteiramente.
+                  </div>
                 </div>
               </div>
 
@@ -1158,6 +1169,49 @@
                       <li><strong>Sem distorções anti-hash</strong> (sem zoom forçado, sem espelhamento horizontal, sem alteração de tom ou velocidade).</li>
                       <li>💡 <em>Vídeo já narrado? Se não precisar de narração ou cortes, basta clicar diretamente em "Gerar Vídeo Master" para renderizar o vídeo base original.</em></li>
                     </ul>
+                  </div>
+
+                  <!-- Idioma das Legendas / Áudio -->
+                  <div class="manual-option-box" style="margin-bottom: 0.85rem; padding: 0.75rem 1rem; border-radius: var(--radius-md); background: var(--surface-subtle); border: 1px solid var(--border-subtle);">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                      <label for="manual-master-lang-select" style="font-size:0.82rem; font-weight:600; color:var(--text-main);">
+                        Idioma das Legendas:
+                      </label>
+                      <select id="manual-master-lang-select" class="form-select" style="font-size: 0.82rem; padding: 4px 10px; font-weight: 600;">
+                        <option value="auto" selected>🌐 Auto-detectar (Recomendado)</option>
+                        <option value="en">🇺🇸 Inglês (English)</option>
+                        <option value="pt">🇧🇷 Português (Brasil)</option>
+                        <option value="es">🇪🇸 Espanhol (Español)</option>
+                      </select>
+                    </div>
+                    <div class="text-muted" style="font-size: 0.74rem; margin-top: 4px;">
+                      No modo <strong>Auto-detectar</strong>, o Whisper identifica automaticamente se a fala é inglês, português ou espanhol e transcreve no idioma correto!
+                    </div>
+                  </div>
+
+                  <!-- Opção Trilha Sonora para Master -->
+                  <div class="manual-option-box" style="margin-bottom: 0.85rem; padding: 0.75rem 1rem; border-radius: var(--radius-md); background: var(--surface-subtle); border: 1px solid var(--border-subtle);">
+                    <label class="form-checkbox-label" style="cursor: pointer;">
+                      <input type="checkbox" id="manual-master-with-music" checked>
+                      <span style="font-weight: 500;">Adicionar música de fundo (Ogryzek)</span>
+                    </label>
+                    <div class="text-muted" style="font-size: 0.75rem; margin-top: 2px; padding-left: 1.5rem;">
+                      Se marcado, adiciona música suave ao fundo. Perfeito se seu vídeo base já tem narração e sons mas está sem música.
+                    </div>
+                  </div>
+
+                  <!-- Barra de Progresso e Status Etapa 5 -->
+                  <div id="manual-step5-progress" style="display:none; margin-bottom: 1rem; padding: 0.85rem 1rem; border-radius: var(--radius-md); background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+                      <span id="manual-step5-status-text" style="font-size: 0.82rem; font-weight: 500; color: var(--primary);">Renderizando Master 9:16...</span>
+                      <span class="spinner" style="width:16px; height:16px; border-width:2px;"></span>
+                    </div>
+                    <div style="width:100%; height:6px; background: rgba(255,255,255,0.1); border-radius:3px; overflow:hidden;">
+                      <div id="manual-step5-progress-bar" style="width: 25%; height:100%; background: var(--primary); transition: width 0.5s ease;"></div>
+                    </div>
+                    <div style="font-size: 0.73rem; color: var(--text-muted); margin-top: 5px;">
+                      Processando transcrição com Whisper e renderização FFmpeg Full HD. Isso pode levar de 40 a 90 segundos.
+                    </div>
                   </div>
 
                   <button type="button" class="btn btn-primary btn-lg" id="btn-manual-render" style="width: 100%; justify-content: center; margin-bottom: 1rem;">
@@ -1946,6 +2000,6 @@
   <!-- Toast de Notificações -->
   <div id="toast-stack" class="toast-stack" role="status" aria-live="polite"></div>
 
-  <script src="app.js?v=3.1.5"></script>
+  <script src="app.js?v=3.2.0"></script>
 </body>
 </html>

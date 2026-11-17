@@ -4327,8 +4327,15 @@ function initManualStudio() {
   const scriptCount = document.getElementById('manual-script-count');
   const langSelect = document.getElementById('manual-lang-select');
   const keepAudioCb = document.getElementById('manual-keep-audio');
+  const reduceAudioCb = document.getElementById('manual-reduce-volume');
   const withMusicCb = document.getElementById('manual-with-music');
+  const masterWithMusicCb = document.getElementById('manual-master-with-music');
+  const masterLangSelect = document.getElementById('manual-master-lang-select');
   const fitAudioCb = document.getElementById('manual-fit-audio');
+
+  const step5Progress = document.getElementById('manual-step5-progress');
+  const step5StatusText = document.getElementById('manual-step5-status-text');
+  const step5ProgressBar = document.getElementById('manual-step5-progress-bar');
 
   const btnVoice = document.getElementById('btn-manual-generate-voice');
   const btnTrim = document.getElementById('btn-manual-trim-silence');
@@ -4339,6 +4346,16 @@ function initManualStudio() {
   const btnSendYouTube = document.getElementById('btn-manual-send-youtube');
 
   if (!dropzone) return;
+
+  // Sincroniza checkboxes de música entre Etapa 4 e Etapa 5
+  if (withMusicCb && masterWithMusicCb) {
+    withMusicCb.addEventListener('change', () => {
+      masterWithMusicCb.checked = withMusicCb.checked;
+    });
+    masterWithMusicCb.addEventListener('change', () => {
+      withMusicCb.checked = masterWithMusicCb.checked;
+    });
+  }
 
   // Dropzone click & drag
   dropzone.addEventListener('click', () => fileInput?.click());
@@ -4421,6 +4438,19 @@ function initManualStudio() {
         audioBadge.textContent = data.hasAudio ? 'Áudio detectado' : 'Sem áudio no arquivo';
         audioBadge.className = data.hasAudio ? 'badge-count success' : 'badge-count';
       }
+      if (keepAudioCb && data.hasAudio !== undefined) {
+        keepAudioCb.checked = Boolean(data.hasAudio);
+      }
+      if (reduceAudioCb) {
+        reduceAudioCb.checked = false;
+      }
+      if (masterLangSelect) {
+        const pName = (data.project || '').toLowerCase();
+        if (pName.includes('_en')) masterLangSelect.value = 'en';
+        else if (pName.includes('_es')) masterLangSelect.value = 'es';
+        else if (pName.includes('_pt')) masterLangSelect.value = 'pt';
+        else masterLangSelect.value = 'auto';
+      }
 
       showToast('Vídeo enviado com sucesso!', 'success');
       loadManualProjectsList();
@@ -4471,6 +4501,19 @@ function initManualStudio() {
       if (audioBadge) {
         audioBadge.textContent = data.hasAudio ? 'Áudio detectado' : 'Sem áudio no arquivo';
         audioBadge.className = data.hasAudio ? 'badge-count success' : 'badge-count';
+      }
+      if (keepAudioCb && data.hasAudio !== undefined) {
+        keepAudioCb.checked = Boolean(data.hasAudio);
+      }
+      if (reduceAudioCb) {
+        reduceAudioCb.checked = false;
+      }
+      if (masterLangSelect) {
+        const pName = (data.project || '').toLowerCase();
+        if (pName.includes('_en')) masterLangSelect.value = 'en';
+        else if (pName.includes('_es')) masterLangSelect.value = 'es';
+        else if (pName.includes('_pt')) masterLangSelect.value = 'pt';
+        else masterLangSelect.value = 'auto';
       }
 
       if (data.existingScript && scriptText && !scriptText.value.trim()) {
@@ -4584,6 +4627,7 @@ function initManualStudio() {
 
     const lang = langSelect?.value || 'pt';
     const keepAudio = Boolean(keepAudioCb?.checked);
+    const reduceAudio = Boolean(reduceAudioCb?.checked);
     const withMusic = Boolean(withMusicCb?.checked);
     const fitAudio = Boolean(fitAudioCb?.checked);
 
@@ -4598,6 +4642,7 @@ function initManualStudio() {
           project: manualState.project,
           lang,
           keepOriginalAudio: keepAudio,
+          reduceOriginalVolume: reduceAudio,
           withMusic,
           fitAudioSpeed: fitAudio
         })
@@ -4631,15 +4676,28 @@ function initManualStudio() {
 
   // Etapa 5: Master 4:5 para 9:16 Full HD + Legendas
   btnRender?.addEventListener('click', async () => {
+    if (!manualState.project && projectSelect?.value) {
+      manualState.project = projectSelect.value;
+    }
     if (!manualState.project) return showToast('Envie ou selecione um vídeo primeiro (Etapa 1).', 'warning');
     const isUsingBase = !manualState.mergedVideoUrl;
     const lang = langSelect?.value || 'pt';
+    const lang = masterLangSelect?.value || 'auto';
 
+    const origBtnHtml = btnRender.innerHTML;
     btnRender.disabled = true;
+    btnRender.innerHTML = '<span class="spinner" style="width:16px;height:16px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:8px;"></span><span>Processando Master 9:16...</span>';
+
+    if (step5Progress) step5Progress.style.display = 'block';
+    if (step5ProgressBar) step5ProgressBar.style.width = '15%';
+    if (step5StatusText) step5StatusText.textContent = 'Iniciando processamento do Master 9:16...';
+
     const infoMsg = isUsingBase
-      ? 'Renderizando Master 9:16 a partir do vídeo base com legendas dinâmicas...'
-      : 'Renderizando Master 9:16 Full HD com enquadramento 4:5 e legendas dinâmicas...';
-    showToast(infoMsg, 'info', 10000);
+      ? 'Processando Master 9:16 a partir do vídeo base com legendas dinâmicas...'
+      : 'Processando Master 9:16 Full HD com enquadramento 4:5 e legendas dinâmicas...';
+    showToast(infoMsg, 'info', 6000);
+
+    let pollInterval = null;
 
     try {
       const res = await fetch('/api/manual/render-4x5-to-9x16', {
@@ -4648,53 +4706,95 @@ function initManualStudio() {
         body: JSON.stringify({
           project: manualState.project,
           lang,
-          useBaseVideo: isUsingBase
+          useBaseVideo: isUsingBase,
+          keepOriginalAudio: Boolean(keepAudioCb?.checked),
+          reduceOriginalVolume: Boolean(reduceAudioCb?.checked),
+          withMusic: Boolean(masterWithMusicCb?.checked)
         })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Falha ao renderizar master 9:16');
 
-      manualState.finalVideoUrl = data.video9x16Url;
-      const finalPlayer = document.getElementById('manual-final-player');
-      const finalActions = document.getElementById('manual-final-actions');
-      if (finalPlayer) {
-        finalPlayer.src = data.video9x16Url;
-        finalPlayer.load();
-      }
-      if (finalActions) finalActions.style.display = 'flex';
-      if (btnDownload) {
-        btnDownload.href = data.video9x16Url;
-        btnDownload.setAttribute('download', `${manualState.project}_master_9x16.mp4`);
+      if (!res.ok) {
+        const errText = await res.text();
+        let errMsg = 'Falha ao iniciar renderização';
+        try { errMsg = JSON.parse(errText).error || errMsg; } catch (_) { errMsg = `Erro HTTP ${res.status}`; }
+        throw new Error(errMsg);
       }
 
-      const successMsg = isUsingBase
-        ? 'Vídeo Master 9:16 Full HD renderizado com sucesso a partir do vídeo base!'
-        : 'Vídeo Master 9:16 Full HD renderizado com sucesso!';
-      showToast(successMsg, 'success', 6000);
-      updateManualStatusBadges();
+      // Polling a cada 3 segundos para acompanhar progresso real do servidor (evita timeout Cloudflare/Nginx)
+      pollInterval = setInterval(async () => {
+        try {
+          const statusRes = await fetch(`/api/manual/render-status?project=${encodeURIComponent(manualState.project)}&lang=${lang}`);
+          if (!statusRes.ok) return;
+          const statusData = await statusRes.json();
+
+          if (statusData.status === 'transcribing') {
+            if (step5ProgressBar) step5ProgressBar.style.width = '35%';
+            if (step5StatusText) step5StatusText.textContent = '1/2: Analisando áudio e gerando legendas dinâmicas via Whisper...';
+          } else if (statusData.status === 'rendering') {
+            if (step5ProgressBar) step5ProgressBar.style.width = '70%';
+            if (step5StatusText) step5StatusText.textContent = '2/2: Enquadrando 4:5 em 9:16 Full HD com bordas desfocadas...';
+          } else if (statusData.status === 'done') {
+            if (pollInterval) clearInterval(pollInterval);
+            if (step5ProgressBar) step5ProgressBar.style.width = '100%';
+            if (step5StatusText) step5StatusText.textContent = 'Vídeo Master 9:16 Full HD concluído com sucesso!';
+
+            manualState.finalVideoUrl = statusData.video9x16Url;
+            const finalPlayer = document.getElementById('manual-final-player');
+            const finalActions = document.getElementById('manual-final-actions');
+            if (finalPlayer) {
+              finalPlayer.src = statusData.video9x16Url;
+              finalPlayer.load();
+            }
+            if (finalActions) finalActions.style.display = 'flex';
+            if (btnDownload) {
+              btnDownload.href = statusData.video9x16Url;
+              btnDownload.setAttribute('download', `${manualState.project}_master_9x16.mp4`);
+            }
+
+            const successMsg = isUsingBase
+              ? 'Vídeo Master 9:16 Full HD renderizado com sucesso a partir do vídeo base!'
+              : 'Vídeo Master 9:16 Full HD renderizado com sucesso!';
+            showToast(successMsg, 'success', 6000);
+            updateManualStatusBadges();
+            btnRender.disabled = false;
+            btnRender.innerHTML = origBtnHtml;
+          } else if (statusData.status === 'error') {
+            if (pollInterval) clearInterval(pollInterval);
+            if (step5StatusText) step5StatusText.textContent = `Erro: ${statusData.error || 'Falha ao renderizar'}`;
+            showToast(`Erro na renderização: ${statusData.error || 'Falha desconhecida'}`, 'error');
+            btnRender.disabled = false;
+            btnRender.innerHTML = origBtnHtml;
+          }
+        } catch (pollErr) {
+          console.warn('[Poll Status Error]', pollErr);
+        }
+      }, 3000);
+
     } catch (err) {
+      if (pollInterval) clearInterval(pollInterval);
+      if (step5StatusText) step5StatusText.textContent = `Erro: ${err.message}`;
       showToast(`Erro na renderização: ${err.message}`, 'error');
-    } finally {
       btnRender.disabled = false;
+      btnRender.innerHTML = origBtnHtml;
     }
   });
 
   // Ação 1-Clique: Processar Tudo
   btnRunAll?.addEventListener('click', async () => {
+    if (!manualState.project && projectSelect?.value) {
+      manualState.project = projectSelect.value;
+    }
     if (!manualState.project) return showToast('Envie ou selecione um vídeo primeiro (Etapa 1).', 'warning');
     const text = scriptText?.value.trim();
     if (!text) {
-      const confirmBase = confirm('Nenhum roteiro digitado para nova narração. Deseja renderizar o Vídeo Master 9:16 diretamente usando o vídeo original e sua narração atual?');
-      if (confirmBase) {
-        btnRender?.click();
-      } else {
-        showToast('Digite ou cole o roteiro de narração para gerar novo áudio neural.', 'warning');
-      }
+      showToast('Nenhum roteiro digitado: gerando Vídeo Master direto do vídeo base...', 'info');
+      btnRender?.click();
       return;
     }
 
     const lang = langSelect?.value || 'pt';
     const keepAudio = Boolean(keepAudioCb?.checked);
+    const reduceAudio = Boolean(reduceAudioCb?.checked);
     const withMusic = Boolean(withMusicCb?.checked);
     const fitAudio = Boolean(fitAudioCb?.checked);
 
@@ -4717,6 +4817,7 @@ function initManualStudio() {
           text,
           lang,
           keepOriginalAudio: keepAudio,
+          reduceOriginalVolume: reduceAudio,
           withMusic,
           fitAudioSpeed: fitAudio
         })

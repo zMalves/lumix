@@ -30,7 +30,7 @@ if (!fs.existsSync(VIDEOS_DIR)) fs.mkdirSync(VIDEOS_DIR, { recursive: true });
 const { ProductionQueue } = require('./queue_manager.js');
 const productionQueue = new ProductionQueue(ROOT_DIR, VIDEOS_DIR);
 const youtubeManager = require('./youtube_manager.js');
-const { EN_TRANSLATION_PROMPT, resolveVoiceId } = require('../scripts/lang_config.js');
+const { PT_BR_TRANSLATION_PROMPT, ES_TRANSLATION_PROMPT, EN_TRANSLATION_PROMPT, resolveVoiceId } = require('../scripts/lang_config.js');
 const { ytDlpCommonArgsShell, fallbackFolderName } = require('../scripts/media_download.js');
 
 // Estado dos processos em background (ex: VMake)
@@ -65,6 +65,9 @@ function sanitizeFolderName(name) {
 
 // Cache em memória para durações de vídeos (evita chamadas redundantes ao ffprobe)
 const durationCache = new Map();
+
+// Rastreamento de jobs assíncronos do Estúdio Manual (evita timeout de proxy/Cloudflare)
+const manualRenderJobs = {};
 
 function getVideoDurationInSeconds(filePath) {
   if (!filePath || !fs.existsSync(filePath)) return 0;
@@ -1502,22 +1505,11 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 500, { error: 'OPENAI_API_KEY não configurada no .env' });
       }
 
-      const isSpanish = lang === 'es';
-      const systemPrompt = isSpanish
-        ? `Eres un traductor profesional especializado en doblaje y subtitulado de videos virales.
-Tu misión:
-1. Traducir el texto original a Español Latino Neutro con máxima fidelidad, manteniendo EXACTAMENTE todas las frases, detalles y acontecimientos de la transcripción original.
-2. NO resumas, NO acortes, NO omitas nada y NO reduzcas el tamaño del texto. Preserva todas las palabras y el sentido completo frase por frase.
-3. Asegura que el lenguaje suene natural para ser hablado en español, adaptando números y valores en palabras para lectura fonética correcta (ej: "$50" -> "cincuenta dólares").
-4. No incluyas notas, introducciones, títulos, saludos o explicaciones. Devuelve EXCLUSIVAMENTE el texto traducido final listo para locución.`
+      const systemPrompt = lang === 'es'
+        ? ES_TRANSLATION_PROMPT
         : lang === 'en'
         ? EN_TRANSLATION_PROMPT
-        : `Você é um tradutor profissional especializado em dublagem e legendagem de vídeos.
-Sua missão:
-1. Traduzir o texto original para Português do Brasil com máxima fidelidade, mantendo EXATAMENTE todas as frases, detalhes e acontecimentos da transcrição original.
-2. NÃO resuma, NÃO encurte, NÃO omita nenhuma fala e NÃO reduza o tamanho do texto. Preserve todas as palavras e o sentido completo frase por frase.
-3. Garanta que a linguagem soe natural para ser falada em português do Brasil, adaptando números e valores por extenso para leitura fonética correta (ex: "$50" -> "cinquenta dólares").
-4. Não inclua notas, introduções, títulos, saudações ou explicações. Retorne EXCLUSIVAMENTE o texto traduzido final pronto para narração.`;
+        : PT_BR_TRANSLATION_PROMPT;
 
       const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -2145,7 +2137,7 @@ Sua missão:
 
     // 4. Juntar Narração + Vídeo + Trilha Sonora (com opção de manter áudio original e acelerar para caber no vídeo)
     if (pathname === '/api/manual/merge-sync' && req.method === 'POST') {
-      const { project, lang = 'pt', keepOriginalAudio = false, withMusic = true, fitAudioSpeed = true } = await parseBody(req);
+      const { project, lang = 'pt', keepOriginalAudio = false, reduceOriginalVolume = false, withMusic = true, fitAudioSpeed = true } = await parseBody(req);
       if (!project) return sendJson(res, 400, { error: 'Nome do projeto necessário' });
       const folderPath = path.join(VIDEOS_DIR, project);
       if (!fs.existsSync(folderPath)) return sendJson(res, 404, { error: 'Pasta do projeto não encontrada' });
@@ -2193,13 +2185,15 @@ Sua missão:
       const finalName = lang === 'pt' ? 'final.mp4' : `final_${lang}.mp4`;
       const finalFile = path.join(folderPath, finalName);
 
+      const origVol = reduceOriginalVolume ? '0.30' : '1.00';
+
       let cmd = '';
       if (keepOriginalAudio && videoHasAudio) {
         if (hasBgMusic) {
-          const filter = `[0:a]volume=0.30[orig_a];[1:a]${filterAudio},volume=1.00[voice];[2:a]volume=0.13[bg];[orig_a][voice][bg]amix=inputs=3:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+          const filter = `[0:a]volume=${origVol}[orig_a];[1:a]${filterAudio},volume=1.00[voice];[2:a]volume=0.13[bg];[orig_a][voice][bg]amix=inputs=3:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
           cmd = `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -stream_loop -1 -i "${bgMusicFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
         } else {
-          const filter = `[0:a]volume=0.30[orig_a];[1:a]${filterAudio},volume=1.00[voice];[orig_a][voice]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+          const filter = `[0:a]volume=${origVol}[orig_a];[1:a]${filterAudio},volume=1.00[voice];[orig_a][voice]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
           cmd = `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
         }
       } else {
@@ -2236,16 +2230,66 @@ Sua missão:
       }
     }
 
+    // 5a. Status do Render Manual 9:16 (Polling para evitar timeout de Cloudflare/Nginx)
+    if (pathname === '/api/manual/render-status' && req.method === 'GET') {
+      const project = url.searchParams.get('project');
+      const lang = url.searchParams.get('lang') || 'auto';
+      if (!project) return sendJson(res, 400, { error: 'Nome do projeto necessário' });
+
+      const folderPath = path.join(VIDEOS_DIR, project);
+      let effectiveLang = (lang && lang !== 'auto') ? lang.toLowerCase() : null;
+      if (!effectiveLang) {
+        if (project.toLowerCase().includes('_en')) effectiveLang = 'en';
+        else if (project.toLowerCase().includes('_es')) effectiveLang = 'es';
+        else effectiveLang = 'pt';
+      }
+
+      const out9x16Name = effectiveLang === 'pt' ? 'video_9x16.mp4' : `video_9x16_${effectiveLang}.mp4`;
+      const output9x16 = path.join(folderPath, out9x16Name);
+      const fallback9x16 = path.join(folderPath, 'video_9x16.mp4');
+
+      const jobKey = `${project}_${effectiveLang}`;
+      const job = manualRenderJobs[jobKey] || manualRenderJobs[`${project}_${lang}`] || manualRenderJobs[`${project}_auto`];
+
+      if (job) {
+        if (job.status === 'error' || job.status === 'transcribing' || job.status === 'rendering') {
+          return sendJson(res, 200, job);
+        }
+        if (job.status === 'done') {
+          return sendJson(res, 200, job);
+        }
+      }
+
+      if (fs.existsSync(output9x16) || fs.existsSync(fallback9x16)) {
+        const foundName = fs.existsSync(output9x16) ? out9x16Name : 'video_9x16.mp4';
+        return sendJson(res, 200, {
+          status: 'done',
+          progress: 100,
+          video9x16Url: `/media/${project}/${foundName}?t=${Date.now()}`,
+          projectDetails: getProjectDetails(project)
+        });
+      }
+
+      return sendJson(res, 200, { status: 'idle' });
+    }
+
     // 5. Etapa final: 4:5 para 9:16 Full HD com bordas desfocadas + opacidade reduzida + legendas (Sem anti-hash)
     if (pathname === '/api/manual/render-4x5-to-9x16' && req.method === 'POST') {
-      const { project, lang = 'pt', useBaseVideo = false } = await parseBody(req);
+      const { project, lang = 'auto', useBaseVideo = false, keepOriginalAudio = true, reduceOriginalVolume = false, withMusic = true } = await parseBody(req);
       if (!project) return sendJson(res, 400, { error: 'Nome do projeto necessário' });
       const folderPath = path.join(VIDEOS_DIR, project);
       if (!fs.existsSync(folderPath)) return sendJson(res, 404, { error: 'Pasta do projeto não encontrada' });
 
-      const finalName = lang === 'pt' ? 'final.mp4' : `final_${lang}.mp4`;
-      const subName = lang === 'pt' ? 'legendas.ass' : `legendas_${lang}.ass`;
-      const out9x16Name = lang === 'pt' ? 'video_9x16.mp4' : `video_9x16_${lang}.mp4`;
+      let effectiveLang = (lang && lang !== 'auto') ? lang.toLowerCase() : null;
+      if (!effectiveLang) {
+        if (project.toLowerCase().includes('_en')) effectiveLang = 'en';
+        else if (project.toLowerCase().includes('_es')) effectiveLang = 'es';
+        else effectiveLang = 'pt';
+      }
+
+      const finalName = effectiveLang === 'pt' ? 'final.mp4' : `final_${effectiveLang}.mp4`;
+      const subName = effectiveLang === 'pt' ? 'legendas.ass' : `legendas_${effectiveLang}.ass`;
+      const out9x16Name = effectiveLang === 'pt' ? 'video_9x16.mp4' : `video_9x16_${effectiveLang}.mp4`;
 
       const baseVideo = fs.existsSync(path.join(folderPath, 'sem_marca.mp4'))
         ? path.join(folderPath, 'sem_marca.mp4')
@@ -2268,70 +2312,153 @@ Sua missão:
         return sendJson(res, 400, { error: 'Nenhum vídeo original ou final encontrado na pasta do projeto' });
       }
 
-      const subFile = path.join(folderPath, subName);
-      const output9x16 = path.join(folderPath, out9x16Name);
-      const subScript = path.join(ROOT_DIR, 'scripts', 'generate-subtitles.py');
+      const jobKey = `${project}_${effectiveLang}`;
+      if (manualRenderJobs[jobKey] && (manualRenderJobs[jobKey].status === 'transcribing' || manualRenderJobs[jobKey].status === 'rendering')) {
+        return sendJson(res, 200, {
+          success: true,
+          status: 'already_running',
+          message: 'Processamento já em andamento'
+        });
+      }
 
-      try {
-        // Gera legendas dinâmicas via Whisper
-        console.log(`[Manual Master] Gerando legendas dinâmicas (${lang.toUpperCase()})...`);
-        execSync(`"${PYTHON_BIN}" "${subScript}" "${inputVid}" "${subFile}" "${lang}"`, { stdio: 'inherit' });
-        if (lang === 'pt') {
-          try { fs.copyFileSync(subFile, path.join(folderPath, 'legendas_pt.ass')); } catch (_) {}
-        }
+      manualRenderJobs[jobKey] = {
+        status: 'transcribing',
+        progress: 20,
+        message: 'Iniciando Whisper...',
+        startedAt: Date.now()
+      };
 
-        // Renderização autoral 4:5 centralizado em canvas 1080x1920 (9:16) Full HD com bordas desfocadas (285px cada)
-        const subEscaped = subFile.replace(/\\/g, '/').replace(/:/g, '\\:');
-        const filterParts = [
-          `[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920:(iw-ow)/2:(ih-oh)/2,setsar=1,avgblur=sizeX=45:sizeY=45,eq=brightness=-0.35:contrast=0.90[bg]`,
-          `[0:v]crop='min(iw,ih*4/5)':'min(ih,iw*5/4)':(iw-ow)/2:(ih-oh)/2,scale=1080:1350,setsar=1[fg]`,
-          `[bg][fg]overlay=0:285,setsar=1[v_comp]`,
-          `[v_comp]subtitles='${subEscaped}'[outv]`
-        ];
-        const filterComplex = filterParts.join(';');
+      // Responde imediatamente ao cliente (evita timeout de 100s do Cloudflare/Nginx)
+      sendJson(res, 200, {
+        success: true,
+        status: 'started',
+        message: 'Renderização iniciada em segundo plano'
+      });
 
-        console.log(`[Manual Master] Renderizando 4:5 -> 9:16 Full HD autoral...`);
-        execSync(`ffmpeg -y -i "${inputVid}" -filter_complex "${filterComplex}" -map "[outv]" -map 0:a? -c:v libx264 -preset fast -crf 19 -movflags +faststart -c:a aac -b:a 192k -ar 44100 "${output9x16}"`, { stdio: 'inherit' });
+      // Executa a renderização em background
+      (async () => {
+        try {
+          const subFile = path.join(folderPath, subName);
+          const output9x16 = path.join(folderPath, out9x16Name);
+          const subScript = path.join(ROOT_DIR, 'scripts', 'generate-subtitles.py');
 
-        if (lang === 'pt') {
+          let videoHasAudio = false;
           try {
-            fs.copyFileSync(output9x16, path.join(folderPath, 'video_9x16_pt.mp4'));
+            const audioProbe = execSync(`ffprobe -v error -select_streams a -show_entries stream=codec_type -of default=noprint_wrappers=1:nokey=1 "${inputVid}"`, { encoding: 'utf-8' }).trim();
+            videoHasAudio = audioProbe.length > 0;
+          } catch (_) {}
+
+          const bgMusicFile = path.join(ROOT_DIR, 'assets', 'music', 'Ogryzek.mp3');
+          const hasBgMusic = Boolean(withMusic) && fs.existsSync(bgMusicFile);
+
+          if (videoHasAudio) {
+            console.log(`[Manual Master] Gerando legendas dinâmicas (${effectiveLang.toUpperCase()})...`);
+            try {
+              execSync(`"${PYTHON_BIN}" "${subScript}" "${inputVid}" "${subFile}" "${effectiveLang}"`, { stdio: 'inherit' });
+              if (effectiveLang === 'pt') {
+                try { fs.copyFileSync(subFile, path.join(folderPath, 'legendas_pt.ass')); } catch (_) {}
+              } else {
+                try { fs.copyFileSync(subFile, path.join(folderPath, 'legendas.ass')); } catch (_) {}
+              }
+            } catch (whisperErr) {
+              console.warn('[Manual Master] Aviso ao transcrever legendas com Whisper:', whisperErr.message);
+            }
+          }
+
+          if (manualRenderJobs[jobKey]) {
+            manualRenderJobs[jobKey].status = 'rendering';
+            manualRenderJobs[jobKey].progress = 60;
+            manualRenderJobs[jobKey].message = 'Renderizando FFmpeg 4:5 -> 9:16 Full HD...';
+          }
+
+          const subEscaped = subFile.replace(/\\/g, '/').replace(/:/g, '\\:');
+          const filterParts = [
+            `[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920:(iw-ow)/2:(ih-oh)/2,setsar=1,avgblur=sizeX=45:sizeY=45,eq=brightness=-0.35:contrast=0.90[bg]`,
+            `[0:v]crop='min(iw,ih*4/5)':'min(ih,iw*5/4)':(iw-ow)/2:(ih-oh)/2,scale=1080:1350,setsar=1[fg]`,
+            `[bg][fg]overlay=0:285,setsar=1[v_comp]`
+          ];
+
+          if (fs.existsSync(subFile) && fs.statSync(subFile).size > 50) {
+            filterParts.push(`[v_comp]subtitles='${subEscaped}'[outv]`);
+          } else {
+            filterParts.push(`[v_comp]null[outv]`);
+          }
+
+          let ffmpegInputs = `-i "${inputVid}"`;
+          let audioMaps = '-map 0:a?';
+          let extraFlags = '';
+
+          if (useBaseVideo) {
+            const hasOrig = videoHasAudio && (keepOriginalAudio !== false);
+            const origVol = reduceOriginalVolume ? '0.30' : '1.00';
+
+            if (hasOrig && hasBgMusic) {
+              ffmpegInputs = `-i "${inputVid}" -stream_loop -1 -i "${bgMusicFile}"`;
+              filterParts.push(`[0:a]volume=${origVol}[orig_a]`);
+              filterParts.push(`[1:a]volume=0.14[bg_music]`);
+              filterParts.push(`[orig_a][bg_music]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[outa]`);
+              audioMaps = '-map "[outa]"';
+              extraFlags = '-shortest';
+            } else if (hasOrig && !hasBgMusic) {
+              if (reduceOriginalVolume) {
+                filterParts.push(`[0:a]volume=0.30,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[outa]`);
+                audioMaps = '-map "[outa]"';
+              } else {
+                audioMaps = '-map 0:a';
+              }
+            } else if (!hasOrig && hasBgMusic) {
+              ffmpegInputs = `-i "${inputVid}" -stream_loop -1 -i "${bgMusicFile}"`;
+              filterParts.push(`[1:a]volume=0.20,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[outa]`);
+              audioMaps = '-map "[outa]"';
+              extraFlags = '-shortest';
+            } else {
+              audioMaps = '-an';
+            }
+          }
+
+          const filterComplex = filterParts.join(';');
+          console.log(`[Manual Master] Renderizando 4:5 -> 9:16 Full HD autoral [Base: ${useBaseVideo}, Música: ${hasBgMusic}]...`);
+          execSync(`ffmpeg -y ${ffmpegInputs} -filter_complex "${filterComplex}" -map "[outv]" ${audioMaps} -c:v libx264 -preset fast -crf 19 -movflags +faststart -c:a aac -b:a 192k -ar 44100 ${extraFlags} "${output9x16}"`, { stdio: 'inherit' });
+
+          try {
+            fs.copyFileSync(output9x16, path.join(folderPath, 'video_9x16.mp4'));
+            fs.copyFileSync(output9x16, path.join(folderPath, `video_9x16_${effectiveLang}.mp4`));
             fs.copyFileSync(output9x16, path.join(folderPath, 'video_9x16_crop_quadrado.mp4'));
             fs.copyFileSync(output9x16, path.join(folderPath, 'video_1x1_legendado.mp4'));
           } catch (_) {}
+
+          try {
+            execSync(`ffmpeg -y -ss 00:00:05 -i "${output9x16}" -vframes 1 -q:v 2 "${path.join(folderPath, `final_val_5s_${effectiveLang}.jpg`)}"`, { stdio: 'ignore' });
+            execSync(`ffmpeg -y -ss 00:00:20 -i "${output9x16}" -vframes 1 -q:v 2 "${path.join(folderPath, `final_val_20s_${effectiveLang}.jpg`)}"`, { stdio: 'ignore' });
+            fs.copyFileSync(path.join(folderPath, `final_val_5s_${effectiveLang}.jpg`), path.join(folderPath, 'final_val_5s.jpg'));
+            fs.copyFileSync(path.join(folderPath, `final_val_20s_${effectiveLang}.jpg`), path.join(folderPath, 'final_val_20s.jpg'));
+          } catch (_) {}
+
+          try {
+            await generatePostCopyForProject(project, effectiveLang);
+          } catch (_) {}
+
+          manualRenderJobs[jobKey] = {
+            status: 'done',
+            progress: 100,
+            video9x16Url: `/media/${project}/${out9x16Name}?t=${Date.now()}`,
+            projectDetails: getProjectDetails(project)
+          };
+          console.log(`[Manual Master] Job finalizado com sucesso para "${project}" (${effectiveLang.toUpperCase()})!`);
+        } catch (err) {
+          console.error('[Manual Master Error]', err);
+          manualRenderJobs[jobKey] = {
+            status: 'error',
+            error: err.message
+          };
         }
-
-        // Thumbnails para visualização
-        try {
-          execSync(`ffmpeg -y -ss 00:00:05 -i "${output9x16}" -vframes 1 -q:v 2 "${path.join(folderPath, `final_val_5s_${lang}.jpg`)}"`, { stdio: 'ignore' });
-          execSync(`ffmpeg -y -ss 00:00:20 -i "${output9x16}" -vframes 1 -q:v 2 "${path.join(folderPath, `final_val_20s_${lang}.jpg`)}"`, { stdio: 'ignore' });
-          if (lang === 'pt') {
-            execSync(`ffmpeg -y -ss 00:00:05 -i "${output9x16}" -vframes 1 -q:v 2 "${path.join(folderPath, 'final_val_5s.jpg')}"`, { stdio: 'ignore' });
-            execSync(`ffmpeg -y -ss 00:00:20 -i "${output9x16}" -vframes 1 -q:v 2 "${path.join(folderPath, 'final_val_20s.jpg')}"`, { stdio: 'ignore' });
-          }
-        } catch (_) {}
-
-        // Títulos e cópia automática
-        try {
-          await generatePostCopyForProject(project, lang);
-        } catch (_) {}
-
-        return sendJson(res, 200, {
-          success: true,
-          project,
-          lang,
-          video9x16Url: `/media/${project}/${out9x16Name}?t=${Date.now()}`,
-          projectDetails: getProjectDetails(project)
-        });
-      } catch (renderErr) {
-        console.error('[Render 4x5 Error]', renderErr);
-        return sendJson(res, 500, { error: 'Erro ao renderizar vídeo 4:5 em 9:16 Full HD', detail: renderErr.message });
-      }
+      })();
+      return;
     }
 
     // 6. Pipeline 1-Clique: executa todo o fluxo manual de ponta a ponta
     if (pathname === '/api/manual/run-all' && req.method === 'POST') {
-      const { project, text, lang = 'pt', keepOriginalAudio = false, withMusic = true, fitAudioSpeed = true, speed = 1.05 } = await parseBody(req);
+      const { project, text, lang = 'pt', keepOriginalAudio = false, reduceOriginalVolume = false, withMusic = true, fitAudioSpeed = true, speed = 1.05 } = await parseBody(req);
       if (!project) return sendJson(res, 400, { error: 'Nome do projeto necessário' });
       if (!text || !text.trim()) return sendJson(res, 400, { error: 'Roteiro de narração não pode estar vazio' });
 
@@ -2398,14 +2525,15 @@ Sua missão:
 
         const finalName = lang === 'pt' ? 'final.mp4' : `final_${lang}.mp4`;
         const finalFile = path.join(folderPath, finalName);
+        const origVol = reduceOriginalVolume ? '0.30' : '1.00';
 
         let cmdMerge = '';
         if (keepOriginalAudio && videoHasAudio) {
           if (hasBgMusic) {
-            const filter = `[0:a]volume=0.30[orig_a];[1:a]${filterAudio},volume=1.00[voice];[2:a]volume=0.13[bg];[orig_a][voice][bg]amix=inputs=3:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+            const filter = `[0:a]volume=${origVol}[orig_a];[1:a]${filterAudio},volume=1.00[voice];[2:a]volume=0.13[bg];[orig_a][voice][bg]amix=inputs=3:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
             cmdMerge = `ffmpeg -y -i "${videoFile}" -i "${trimmedPath}" -stream_loop -1 -i "${bgMusicFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
           } else {
-            const filter = `[0:a]volume=0.30[orig_a];[1:a]${filterAudio},volume=1.00[voice];[orig_a][voice]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+            const filter = `[0:a]volume=${origVol}[orig_a];[1:a]${filterAudio},volume=1.00[voice];[orig_a][voice]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
             cmdMerge = `ffmpeg -y -i "${videoFile}" -i "${trimmedPath}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
           }
         } else {

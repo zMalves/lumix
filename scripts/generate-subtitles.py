@@ -4,9 +4,15 @@ from faster_whisper import WhisperModel
 audio_path = sys.argv[1]
 output_ass = sys.argv[2]
 lang = sys.argv[3] if len(sys.argv) > 3 and sys.argv[3] else "pt"
+raw_lang = sys.argv[3] if len(sys.argv) > 3 and sys.argv[3] else "auto"
+
+# Se "auto", deixa language=None para auto-detecção nativa do Whisper (identifica EN, PT, ES, etc.)
+whisper_lang = None if (not raw_lang or raw_lang.lower() in ("auto", "detect", "none")) else raw_lang.lower()
 
 model = WhisperModel("base", device="cpu", compute_type="int8")
 segments, info = model.transcribe(audio_path, language=lang, word_timestamps=True)
+segments, info = model.transcribe(audio_path, language=whisper_lang, word_timestamps=True)
+print(f"[Whisper] Idioma utilizado/detectado: {info.language} (confiança: {info.language_probability:.2f})")
 
 def format_ass_time(sec):
     h = int(sec // 3600)

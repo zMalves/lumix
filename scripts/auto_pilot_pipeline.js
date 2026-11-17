@@ -18,7 +18,7 @@ const TOOLS_DIR = path.join(ROOT_DIR, 'tools');
 const isWin = process.platform === 'win32';
 const YT_DLP_PATH = process.env.YTDLP_BIN || (isWin ? path.join(TOOLS_DIR, 'yt-dlp.exe') : 'yt-dlp');
 const pythonExe = process.env.PYTHON_BIN || (isWin ? 'C:\\Users\\Maychel\\AppData\\Roaming\\VoiceStudio\\runtime\\project\\.venv\\Scripts\\python.exe' : 'python3');
-const { EN_TRANSLATION_PROMPT, EN_POST_COPY_SYSTEM, resolveVoiceId } = require('./lang_config.js');
+const { PT_BR_TRANSLATION_PROMPT, ES_TRANSLATION_PROMPT, EN_TRANSLATION_PROMPT, EN_POST_COPY_SYSTEM, resolveVoiceId } = require('./lang_config.js');
 const { ytDlpCommonArgsShell, ytDlpCommonArgs, fallbackFolderName, detectPlatform } = require('./media_download.js');
 
 function log(stage, msg) {
@@ -280,10 +280,10 @@ async function runAutoPilot(inputTarget, options = {}) {
       if (process.env.OPENAI_API_KEY) {
         try {
           const systemContent = isSpanish
-            ? 'Eres un traductor profesional especializado en doblaje de videos virales. Traduce el texto a Español Latino Neutro con máxima fidelidad, manteniendo EXACTAMENTE todas las frases y palabras de la transcripción original. NO resumas, NO acortes, NO omitas nada y NO reduzcas caracteres. Devuelve EXCLUSIVAMENTE el texto final traducido listo para locución.'
+            ? ES_TRANSLATION_PROMPT
             : isEnglish
             ? EN_TRANSLATION_PROMPT
-            : 'Você é um tradutor profissional especializado em dublagem de vídeos. Traduza o texto para Português do Brasil com máxima fidelidade, mantendo EXATAMENTE todas as frases e palavras da transcrição original. NÃO resuma, NÃO encurte, NÃO omita nada e NÃO reduza caracteres. Retorne EXCLUSIVAMENTE o texto final traduzido pronto para narração.';
+            : PT_BR_TRANSLATION_PROMPT;
 
           const oaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
