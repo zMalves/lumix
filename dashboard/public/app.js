@@ -4681,8 +4681,7 @@ function initManualStudio() {
     }
     if (!manualState.project) return showToast('Envie ou selecione um vídeo primeiro (Etapa 1).', 'warning');
     const isUsingBase = !manualState.mergedVideoUrl;
-    const lang = langSelect?.value || 'pt';
-    const lang = masterLangSelect?.value || 'auto';
+    const lang = masterLangSelect?.value || langSelect?.value || 'auto';
 
     const origBtnHtml = btnRender.innerHTML;
     btnRender.disabled = true;
