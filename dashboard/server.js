@@ -55,7 +55,8 @@ function resolveMixVolumes(body = {}, reduceOriginalVolume = false) {
 // Um volume fixo (0.13) deixava a música ~21 dB abaixo da voz depois que a voz passou a sair em -14 LUFS.
 const MUSIC_LUFS = -26;
 function musicChain(musicVol = '1.00') {
-  return `aformat=sample_fmts=fltp:channel_layouts=stereo,loudnorm=I=${MUSIC_LUFS}:TP=-3:LRA=11,aresample=44100,volume=${musicVol}`;
+  // O aformat depois do aresample é obrigatório no ffmpeg 5.1 do contêiner (sem ele: "Cannot select channel layout").
+  return `aformat=sample_fmts=fltp:channel_layouts=stereo,loudnorm=I=${MUSIC_LUFS}:TP=-3:LRA=11,aresample=44100,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,volume=${musicVol}`;
 }
 
 function sendJson(res, statusCode, data) {
