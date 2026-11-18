@@ -4357,6 +4357,72 @@ function initManualStudio() {
     });
   }
 
+  // Mixer de áudio (Etapas 4 e 5): voz, áudio original e música, 0-200%.
+  // Os controles de áudio original e música da Etapa 5 acompanham os da Etapa 4.
+  const mixVoice = document.getElementById('manual-mix-voice');
+  const mixOrig = document.getElementById('manual-mix-orig');
+  const mixMusic = document.getElementById('manual-mix-music');
+  const mixVoiceVal = document.getElementById('manual-mix-voice-val');
+  const mixOrigVal = document.getElementById('manual-mix-orig-val');
+  const mixMusicVal = document.getElementById('manual-mix-music-val');
+  const mixReset = document.getElementById('btn-manual-mixer-reset');
+  const masterMixOrig = document.getElementById('manual-master-mix-orig');
+  const masterMixMusic = document.getElementById('manual-master-mix-music');
+  const masterMixOrigVal = document.getElementById('manual-master-mix-orig-val');
+  const masterMixMusicVal = document.getElementById('manual-master-mix-music-val');
+  const masterMixReset = document.getElementById('btn-manual-master-mixer-reset');
+
+  const sliderVal = (el, fallback) => (el ? Number(el.value) : fallback);
+  const getMix = () => ({
+    voiceVolume: sliderVal(mixVoice, 100),
+    origVolume: sliderVal(mixOrig, sliderVal(masterMixOrig, reduceAudioCb?.checked ? 30 : 100)),
+    musicVolume: sliderVal(mixMusic, sliderVal(masterMixMusic, 100))
+  });
+  const refreshMixLabels = () => {
+    if (mixVoiceVal && mixVoice) mixVoiceVal.textContent = `${mixVoice.value}%`;
+    if (mixOrigVal && mixOrig) mixOrigVal.textContent = `${mixOrig.value}%`;
+    if (mixMusicVal && mixMusic) mixMusicVal.textContent = `${mixMusic.value}%`;
+    if (masterMixOrigVal && masterMixOrig) masterMixOrigVal.textContent = `${masterMixOrig.value}%`;
+    if (masterMixMusicVal && masterMixMusic) masterMixMusicVal.textContent = `${masterMixMusic.value}%`;
+  };
+  const setOrig = (v, syncChecks = true) => {
+    if (mixOrig) mixOrig.value = v;
+    if (masterMixOrig) masterMixOrig.value = v;
+    if (syncChecks) {
+      if (keepAudioCb) keepAudioCb.checked = v > 0;
+      if (reduceAudioCb) reduceAudioCb.checked = v > 0 && v <= 30;
+    }
+    refreshMixLabels();
+  };
+  const setMusic = (v) => {
+    if (mixMusic) mixMusic.value = v;
+    if (masterMixMusic) masterMixMusic.value = v;
+    refreshMixLabels();
+  };
+  mixVoice?.addEventListener('input', refreshMixLabels);
+  mixOrig?.addEventListener('input', () => setOrig(Number(mixOrig.value)));
+  masterMixOrig?.addEventListener('input', () => setOrig(Number(masterMixOrig.value)));
+  mixMusic?.addEventListener('input', () => setMusic(Number(mixMusic.value)));
+  masterMixMusic?.addEventListener('input', () => setMusic(Number(masterMixMusic.value)));
+  keepAudioCb?.addEventListener('change', () => {
+    const cur = sliderVal(mixOrig, sliderVal(masterMixOrig, 100));
+    if (!keepAudioCb.checked) setOrig(0, false);
+    else if (cur === 0) setOrig(reduceAudioCb?.checked ? 30 : 100, false);
+  });
+  reduceAudioCb?.addEventListener('change', () => {
+    if (keepAudioCb) keepAudioCb.checked = true;
+    setOrig(reduceAudioCb.checked ? 30 : 100, false);
+  });
+  const resetMix = () => {
+    if (mixVoice) mixVoice.value = 100;
+    setOrig(keepAudioCb?.checked ? (reduceAudioCb?.checked ? 30 : 100) : 0, false);
+    setMusic(100);
+  };
+  mixReset?.addEventListener('click', resetMix);
+  masterMixReset?.addEventListener('click', resetMix);
+  if (keepAudioCb && !keepAudioCb.checked) setOrig(0, false);
+  refreshMixLabels();
+
   // Dropzone click & drag
   dropzone.addEventListener('click', () => fileInput?.click());
   ['dragenter', 'dragover'].forEach(evt => {
@@ -4643,6 +4709,7 @@ function initManualStudio() {
           lang,
           keepOriginalAudio: keepAudio,
           reduceOriginalVolume: reduceAudio,
+          ...getMix(),
           withMusic,
           fitAudioSpeed: fitAudio
         })
@@ -4708,6 +4775,8 @@ function initManualStudio() {
           useBaseVideo: isUsingBase,
           keepOriginalAudio: Boolean(keepAudioCb?.checked),
           reduceOriginalVolume: Boolean(reduceAudioCb?.checked),
+          origVolume: getMix().origVolume,
+          musicVolume: getMix().musicVolume,
           withMusic: Boolean(masterWithMusicCb?.checked)
         })
       });
@@ -4817,6 +4886,7 @@ function initManualStudio() {
           lang,
           keepOriginalAudio: keepAudio,
           reduceOriginalVolume: reduceAudio,
+          ...getMix(),
           withMusic,
           fitAudioSpeed: fitAudio
         })

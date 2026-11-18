@@ -1119,7 +1119,33 @@
                   <span style="font-weight: 500;">Adicionar música de fundo (Ogryzek)</span>
                 </label>
                 <div class="text-muted" style="font-size: 0.76rem; margin-top: 2px; padding-left: 1.5rem;">
-                  Trilha sonora suave a 13% do volume para preencher a dinâmica sem encobrir a voz.
+                  Trilha sonora suave, ~12 dB abaixo da voz, para preencher a dinâmica sem encobrir a narração. Ajuste o volume no mixer abaixo.
+                </div>
+              </div>
+
+              <!-- Mixer: voz x áudio original -->
+              <div class="manual-option-box" id="manual-mixer" style="margin-bottom: 0.75rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.5rem;">
+                  <span style="font-weight: 600;">🎚️ Mixer de áudio</span>
+                  <button type="button" class="btn btn-secondary" id="btn-manual-mixer-reset" style="padding: 2px 10px; font-size: 0.74rem;">Resetar</button>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom: 0.4rem;">
+                  <label for="manual-mix-voice" style="width: 105px; font-size: 0.82rem;">🎙️ Voz (narração)</label>
+                  <input type="range" id="manual-mix-voice" min="0" max="200" step="5" value="100" style="flex:1;">
+                  <span id="manual-mix-voice-val" style="width: 48px; text-align:right; font-size: 0.82rem; font-family: var(--font-mono);">100%</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.6rem;">
+                  <label for="manual-mix-orig" style="width: 105px; font-size: 0.82rem;">🎬 Áudio original</label>
+                  <input type="range" id="manual-mix-orig" min="0" max="200" step="5" value="100" style="flex:1;">
+                  <span id="manual-mix-orig-val" style="width: 48px; text-align:right; font-size: 0.82rem; font-family: var(--font-mono);">100%</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.6rem; margin-top: 0.4rem;">
+                  <label for="manual-mix-music" style="width: 105px; font-size: 0.82rem;">🎵 Música</label>
+                  <input type="range" id="manual-mix-music" min="0" max="200" step="5" value="100" style="flex:1;">
+                  <span id="manual-mix-music-val" style="width: 48px; text-align:right; font-size: 0.82rem; font-family: var(--font-mono);">100%</span>
+                </div>
+                <div class="text-muted" style="font-size: 0.74rem; margin-top: 6px;">
+                  100% = volume normal, 0% = mudo, até 200%. Áudio original em 0% remove o som do vídeo; acima de 0% ele é mantido (liga "Manter áudio original" na Etapa 1 automaticamente). Música 100% = ~12 dB abaixo da voz (precisa de "Adicionar música de fundo" marcado).
                 </div>
               </div>
 
@@ -1197,6 +1223,27 @@
                     </label>
                     <div class="text-muted" style="font-size: 0.75rem; margin-top: 2px; padding-left: 1.5rem;">
                       Se marcado, adiciona música suave ao fundo. Perfeito se seu vídeo base já tem narração e sons mas está sem música.
+                    </div>
+                  </div>
+
+                  <!-- Mixer da Etapa 5 (vale quando o Master parte do vídeo base, pulando as etapas; sincronizado com o da Etapa 4) -->
+                  <div class="manual-option-box" id="manual-master-mixer" style="margin-bottom: 0.85rem; padding: 0.75rem 1rem; border-radius: var(--radius-md); background: var(--surface-subtle); border: 1px solid var(--border-subtle);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.5rem;">
+                      <span style="font-weight: 600;">🎚️ Mixer de áudio</span>
+                      <button type="button" class="btn btn-secondary" id="btn-manual-master-mixer-reset" style="padding: 2px 10px; font-size: 0.74rem;">Resetar</button>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom: 0.4rem;">
+                      <label for="manual-master-mix-orig" style="width: 105px; font-size: 0.82rem;">🎬 Áudio original</label>
+                      <input type="range" id="manual-master-mix-orig" min="0" max="200" step="5" value="100" style="flex:1;">
+                      <span id="manual-master-mix-orig-val" style="width: 48px; text-align:right; font-size: 0.82rem; font-family: var(--font-mono);">100%</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:0.6rem;">
+                      <label for="manual-master-mix-music" style="width: 105px; font-size: 0.82rem;">🎵 Música</label>
+                      <input type="range" id="manual-master-mix-music" min="0" max="200" step="5" value="100" style="flex:1;">
+                      <span id="manual-master-mix-music-val" style="width: 48px; text-align:right; font-size: 0.82rem; font-family: var(--font-mono);">100%</span>
+                    </div>
+                    <div class="text-muted" style="font-size: 0.74rem; margin-top: 6px;">
+                      Vale quando o Master parte do vídeo base (pulando as etapas 2–4). Se a Etapa 4 já foi mesclada, o som vem pronto dela. Os controles acompanham os da Etapa 4.
                     </div>
                   </div>
 
@@ -2003,6 +2050,6 @@
   <script src="app.js?v=3.1.7"></script>
   <script src="app.js?v=3.1.8"></script>
   <script src="app.js?v=3.2.0"></script>
-  <script src="app.js?v=3.2.2"></script>
+  <script src="app.js?v=3.2.4"></script>
 </body>
 </html>

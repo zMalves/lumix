@@ -36,6 +36,28 @@ const { ytDlpCommonArgsShell, fallbackFolderName } = require('../scripts/media_d
 // Estado dos processos em background (ex: VMake)
 const activeJobs = new Map();
 
+// Mixer do Estúdio Manual: origVolume / voiceVolume chegam em % (0-200).
+// Sem origVolume, mantém o comportamento antigo (30% se "reduzir", senão 100%).
+function resolveMixVolumes(body = {}, reduceOriginalVolume = false) {
+  const toFactor = (pct, fallbackPct) => {
+    const n = Number(pct);
+    const v = (pct === undefined || pct === null || pct === '' || !Number.isFinite(n)) ? fallbackPct : n;
+    return (Math.min(200, Math.max(0, v)) / 100).toFixed(2);
+  };
+  return {
+    origVol: toFactor(body.origVolume, reduceOriginalVolume ? 30 : 100),
+    voiceVol: toFactor(body.voiceVolume, 100),
+    musicVol: toFactor(body.musicVolume, 100)
+  };
+}
+
+// Música de fundo: normalizada para MUSIC_LUFS antes do volume do mixer (100% = 12 dB abaixo da voz em -14 LUFS).
+// Um volume fixo (0.13) deixava a música ~21 dB abaixo da voz depois que a voz passou a sair em -14 LUFS.
+const MUSIC_LUFS = -26;
+function musicChain(musicVol = '1.00') {
+  return `aformat=sample_fmts=fltp:channel_layouts=stereo,loudnorm=I=${MUSIC_LUFS}:TP=-3:LRA=11,aresample=44100,volume=${musicVol}`;
+}
+
 function sendJson(res, statusCode, data) {
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
@@ -2137,7 +2159,8 @@ const server = http.createServer(async (req, res) => {
 
     // 4. Juntar Narração + Vídeo + Trilha Sonora (com opção de manter áudio original e acelerar para caber no vídeo)
     if (pathname === '/api/manual/merge-sync' && req.method === 'POST') {
-      const { project, lang = 'pt', keepOriginalAudio = false, reduceOriginalVolume = false, withMusic = true, fitAudioSpeed = true } = await parseBody(req);
+      const mixBody = await parseBody(req);
+      const { project, lang = 'pt', keepOriginalAudio = false, reduceOriginalVolume = false, withMusic = true, fitAudioSpeed = true } = mixBody;
       if (!project) return sendJson(res, 400, { error: 'Nome do projeto necessário' });
       const folderPath = path.join(VIDEOS_DIR, project);
       if (!fs.existsSync(folderPath)) return sendJson(res, 404, { error: 'Pasta do projeto não encontrada' });
@@ -2185,23 +2208,23 @@ const server = http.createServer(async (req, res) => {
       const finalName = lang === 'pt' ? 'final.mp4' : `final_${lang}.mp4`;
       const finalFile = path.join(folderPath, finalName);
 
-      const origVol = reduceOriginalVolume ? '0.30' : '1.00';
+      const { origVol, voiceVol, musicVol } = resolveMixVolumes(mixBody, reduceOriginalVolume);
 
       let cmd = '';
       if (keepOriginalAudio && videoHasAudio) {
         if (hasBgMusic) {
-          const filter = `[0:a]volume=${origVol}[orig_a];[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7[voice];[2:a]volume=0.13[bg];[orig_a][voice][bg]amix=inputs=3:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+          const filter = `[0:a]volume=${origVol}[orig_a];[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7,volume=${voiceVol}[voice];[2:a]${musicChain(musicVol)}[bg];[orig_a][voice][bg]amix=inputs=3:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
           cmd = `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -stream_loop -1 -i "${bgMusicFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
         } else {
-          const filter = `[0:a]volume=${origVol}[orig_a];[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7[voice];[orig_a][voice]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+          const filter = `[0:a]volume=${origVol}[orig_a];[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7,volume=${voiceVol}[voice];[orig_a][voice]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
           cmd = `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
         }
       } else {
         if (hasBgMusic) {
-          const filter = `[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7[voice];[2:a]volume=0.14[bg];[voice][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+          const filter = `[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7,volume=${voiceVol}[voice];[2:a]${musicChain(musicVol)}[bg];[voice][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
           cmd = `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -stream_loop -1 -i "${bgMusicFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
         } else {
-          const filter = `[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+          const filter = `[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7,volume=${voiceVol},aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
           cmd = `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
         }
       }
@@ -2275,7 +2298,8 @@ const server = http.createServer(async (req, res) => {
 
     // 5. Etapa final: 4:5 para 9:16 Full HD com bordas desfocadas + opacidade reduzida + legendas (Sem anti-hash)
     if (pathname === '/api/manual/render-4x5-to-9x16' && req.method === 'POST') {
-      const { project, lang = 'auto', useBaseVideo = false, keepOriginalAudio = true, reduceOriginalVolume = false, withMusic = true } = await parseBody(req);
+      const mixBody = await parseBody(req);
+      const { project, lang = 'auto', useBaseVideo = false, keepOriginalAudio = true, reduceOriginalVolume = false, withMusic = true } = mixBody;
       if (!project) return sendJson(res, 400, { error: 'Nome do projeto necessário' });
       const folderPath = path.join(VIDEOS_DIR, project);
       if (!fs.existsSync(folderPath)) return sendJson(res, 404, { error: 'Pasta do projeto não encontrada' });
@@ -2390,25 +2414,25 @@ const server = http.createServer(async (req, res) => {
 
           if (useBaseVideo) {
             const hasOrig = videoHasAudio && (keepOriginalAudio !== false);
-            const origVol = reduceOriginalVolume ? '0.30' : '1.00';
+            const { origVol, voiceVol, musicVol } = resolveMixVolumes(mixBody, reduceOriginalVolume);
 
             if (hasOrig && hasBgMusic) {
               ffmpegInputs = `-i "${inputVid}" -stream_loop -1 -i "${bgMusicFile}"`;
               filterParts.push(`[0:a]volume=${origVol}[orig_a]`);
-              filterParts.push(`[1:a]volume=0.14[bg_music]`);
+              filterParts.push(`[1:a]${musicChain(musicVol)}[bg_music]`);
               filterParts.push(`[orig_a][bg_music]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[outa]`);
               audioMaps = '-map "[outa]"';
               extraFlags = '-shortest';
             } else if (hasOrig && !hasBgMusic) {
-              if (reduceOriginalVolume) {
-                filterParts.push(`[0:a]volume=0.30,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[outa]`);
+              if (reduceOriginalVolume || origVol !== '1.00') {
+                filterParts.push(`[0:a]volume=${origVol},aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[outa]`);
                 audioMaps = '-map "[outa]"';
               } else {
                 audioMaps = '-map 0:a';
               }
             } else if (!hasOrig && hasBgMusic) {
               ffmpegInputs = `-i "${inputVid}" -stream_loop -1 -i "${bgMusicFile}"`;
-              filterParts.push(`[1:a]volume=0.20,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[outa]`);
+              filterParts.push(`[1:a]${musicChain(musicVol)},aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[outa]`);
               audioMaps = '-map "[outa]"';
               extraFlags = '-shortest';
             } else {
@@ -2458,7 +2482,8 @@ const server = http.createServer(async (req, res) => {
 
     // 6. Pipeline 1-Clique: executa todo o fluxo manual de ponta a ponta
     if (pathname === '/api/manual/run-all' && req.method === 'POST') {
-      const { project, text, lang = 'pt', keepOriginalAudio = false, reduceOriginalVolume = false, withMusic = true, fitAudioSpeed = true, speed = 1.05 } = await parseBody(req);
+      const mixBody = await parseBody(req);
+      const { project, text, lang = 'pt', keepOriginalAudio = false, reduceOriginalVolume = false, withMusic = true, fitAudioSpeed = true, speed = 1.05 } = mixBody;
       if (!project) return sendJson(res, 400, { error: 'Nome do projeto necessário' });
       if (!text || !text.trim()) return sendJson(res, 400, { error: 'Roteiro de narração não pode estar vazio' });
 
@@ -2525,23 +2550,23 @@ const server = http.createServer(async (req, res) => {
 
         const finalName = lang === 'pt' ? 'final.mp4' : `final_${lang}.mp4`;
         const finalFile = path.join(folderPath, finalName);
-        const origVol = reduceOriginalVolume ? '0.30' : '1.00';
+        const { origVol, voiceVol, musicVol } = resolveMixVolumes(mixBody, reduceOriginalVolume);
 
         let cmdMerge = '';
         if (keepOriginalAudio && videoHasAudio) {
           if (hasBgMusic) {
-            const filter = `[0:a]volume=${origVol}[orig_a];[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7[voice];[2:a]volume=0.13[bg];[orig_a][voice][bg]amix=inputs=3:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+            const filter = `[0:a]volume=${origVol}[orig_a];[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7,volume=${voiceVol}[voice];[2:a]${musicChain(musicVol)}[bg];[orig_a][voice][bg]amix=inputs=3:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
             cmdMerge = `ffmpeg -y -i "${videoFile}" -i "${trimmedPath}" -stream_loop -1 -i "${bgMusicFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
           } else {
-            const filter = `[0:a]volume=${origVol}[orig_a];[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7[voice];[orig_a][voice]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+            const filter = `[0:a]volume=${origVol}[orig_a];[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7,volume=${voiceVol}[voice];[orig_a][voice]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
             cmdMerge = `ffmpeg -y -i "${videoFile}" -i "${trimmedPath}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
           }
         } else {
           if (hasBgMusic) {
-            const filter = `[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7[voice];[2:a]volume=0.14[bg];[voice][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+            const filter = `[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7,volume=${voiceVol}[voice];[2:a]${musicChain(musicVol)}[bg];[voice][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
             cmdMerge = `ffmpeg -y -i "${videoFile}" -i "${trimmedPath}" -stream_loop -1 -i "${bgMusicFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
           } else {
-            const filter = `[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+            const filter = `[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7,volume=${voiceVol},aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
             cmdMerge = `ffmpeg -y -i "${videoFile}" -i "${trimmedPath}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
           }
         }
