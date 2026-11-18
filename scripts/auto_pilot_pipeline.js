@@ -384,12 +384,12 @@ async function runAutoPilot(inputTarget, options = {}) {
       const hasBgMusic = withMusic && fs.existsSync(bgMusicFile);
 
       let cmd = '';
-      if (hasBgMusic) {
-        const filterComplex = `[1:a]${filterAudio},aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,volume=1.0[voice];[2:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,volume=0.15[bg];[voice][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=channel_layouts=stereo[aout]`;
-        cmd = `ffmpeg -y -i "${effectiveCutVid}" -i "${effectiveAudio}" -stream_loop -1 -i "${bgMusicFile}" -filter_complex "${filterComplex}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalVid}"`;
-      } else {
-        cmd = `ffmpeg -y -i "${effectiveCutVid}" -i "${effectiveAudio}" -filter_complex "[1:a]${filterAudio},aformat=channel_layouts=stereo[aout]" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -movflags +faststart "${finalVid}"`;
-      }
+        if (hasBgMusic) {
+          const filterComplex = `[1:a]${filterAudio},aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,loudnorm=I=-14:TP=-1.5:LRA=7[voice];[2:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,volume=0.15[bg];[voice][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=channel_layouts=stereo[aout]`;
+          cmd = `ffmpeg -y -i "${effectiveCutVid}" -i "${effectiveAudio}" -stream_loop -1 -i "${bgMusicFile}" -filter_complex "${filterComplex}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalVid}"`;
+        } else {
+          cmd = `ffmpeg -y -i "${effectiveCutVid}" -i "${effectiveAudio}" -filter_complex "[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7,aformat=channel_layouts=stereo[aout]" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -movflags +faststart "${finalVid}"`;
+        }
 
       execSync(cmd, { stdio: 'ignore' });
       if (lang === 'pt') {

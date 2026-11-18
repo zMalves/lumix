@@ -1768,10 +1768,10 @@ const server = http.createServer(async (req, res) => {
 
         let cmd = '';
         if (hasBgMusic) {
-          const filterComplex = `[1:a]${filterAudio},aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,volume=1.0[voice];[2:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,volume=0.15[bg];[voice][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=channel_layouts=stereo[aout]`;
+          const filterComplex = `[1:a]${filterAudio},aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,loudnorm=I=-14:TP=-1.5:LRA=7[voice];[2:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,volume=0.15[bg];[voice][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=channel_layouts=stereo[aout]`;
           cmd = `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -stream_loop -1 -i "${bgMusicFile}" -filter_complex "${filterComplex}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
         } else {
-          cmd = `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -filter_complex "[1:a]${filterAudio},aformat=channel_layouts=stereo[aout]" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -movflags +faststart "${finalFile}"`;
+          cmd = `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -filter_complex "[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7,aformat=channel_layouts=stereo[aout]" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -movflags +faststart "${finalFile}"`;
         }
 
         console.log(`[Merge] Executando comando de mesclagem para idioma: [${lang.toUpperCase()}] [Com música: ${hasBgMusic}]...`);
@@ -2190,18 +2190,18 @@ const server = http.createServer(async (req, res) => {
       let cmd = '';
       if (keepOriginalAudio && videoHasAudio) {
         if (hasBgMusic) {
-          const filter = `[0:a]volume=${origVol}[orig_a];[1:a]${filterAudio},volume=1.00[voice];[2:a]volume=0.13[bg];[orig_a][voice][bg]amix=inputs=3:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+          const filter = `[0:a]volume=${origVol}[orig_a];[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7[voice];[2:a]volume=0.13[bg];[orig_a][voice][bg]amix=inputs=3:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
           cmd = `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -stream_loop -1 -i "${bgMusicFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
         } else {
-          const filter = `[0:a]volume=${origVol}[orig_a];[1:a]${filterAudio},volume=1.00[voice];[orig_a][voice]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+          const filter = `[0:a]volume=${origVol}[orig_a];[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7[voice];[orig_a][voice]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
           cmd = `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
         }
       } else {
         if (hasBgMusic) {
-          const filter = `[1:a]${filterAudio},volume=1.00[voice];[2:a]volume=0.14[bg];[voice][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+          const filter = `[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7[voice];[2:a]volume=0.14[bg];[voice][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
           cmd = `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -stream_loop -1 -i "${bgMusicFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
         } else {
-          const filter = `[1:a]${filterAudio},aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+          const filter = `[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
           cmd = `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
         }
       }
@@ -2530,18 +2530,18 @@ const server = http.createServer(async (req, res) => {
         let cmdMerge = '';
         if (keepOriginalAudio && videoHasAudio) {
           if (hasBgMusic) {
-            const filter = `[0:a]volume=${origVol}[orig_a];[1:a]${filterAudio},volume=1.00[voice];[2:a]volume=0.13[bg];[orig_a][voice][bg]amix=inputs=3:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+            const filter = `[0:a]volume=${origVol}[orig_a];[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7[voice];[2:a]volume=0.13[bg];[orig_a][voice][bg]amix=inputs=3:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
             cmdMerge = `ffmpeg -y -i "${videoFile}" -i "${trimmedPath}" -stream_loop -1 -i "${bgMusicFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
           } else {
-            const filter = `[0:a]volume=${origVol}[orig_a];[1:a]${filterAudio},volume=1.00[voice];[orig_a][voice]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+            const filter = `[0:a]volume=${origVol}[orig_a];[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7[voice];[orig_a][voice]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
             cmdMerge = `ffmpeg -y -i "${videoFile}" -i "${trimmedPath}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
           }
         } else {
           if (hasBgMusic) {
-            const filter = `[1:a]${filterAudio},volume=1.00[voice];[2:a]volume=0.14[bg];[voice][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+            const filter = `[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7[voice];[2:a]volume=0.14[bg];[voice][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
             cmdMerge = `ffmpeg -y -i "${videoFile}" -i "${trimmedPath}" -stream_loop -1 -i "${bgMusicFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
           } else {
-            const filter = `[1:a]${filterAudio},aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
+            const filter = `[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
             cmdMerge = `ffmpeg -y -i "${videoFile}" -i "${trimmedPath}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
           }
         }

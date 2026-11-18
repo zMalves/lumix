@@ -72,7 +72,7 @@ async function callMiniMaxAPI(text, voiceId, speed = 1.05) {
           voice_setting: {
             voice_id: voiceId,
             speed: parseFloat(speed) || 1.05,
-            vol: 1.0,
+            vol: 1.4,
             pitch: 0
           },
           audio_setting: {
