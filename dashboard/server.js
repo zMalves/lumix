@@ -32,6 +32,7 @@ const productionQueue = new ProductionQueue(ROOT_DIR, VIDEOS_DIR);
 const youtubeManager = require('./youtube_manager.js');
 const { PT_BR_TRANSLATION_PROMPT, ES_TRANSLATION_PROMPT, EN_TRANSLATION_PROMPT, resolveVoiceId } = require('../scripts/lang_config.js');
 const { ytDlpCommonArgsShell, fallbackFolderName } = require('../scripts/media_download.js');
+const { narrationLimits, lengthInstruction } = require('../scripts/narration_fit.js');
 
 // Estado dos processos em background (ex: VMake)
 const activeJobs = new Map();
@@ -1523,11 +1524,20 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 500, { error: 'OPENAI_API_KEY não configurada no .env' });
       }
 
-      const systemPrompt = lang === 'es'
+      const basePrompt = lang === 'es'
         ? ES_TRANSLATION_PROMPT
         : lang === 'en'
           ? EN_TRANSLATION_PROMPT
           : PT_BR_TRANSLATION_PROMPT;
+
+      // Limite de tamanho pela duração do vídeo, para a narração caber sem acelerar a voz
+      const baseVideoForLimit = fs.existsSync(path.join(folderPath, 'sem_marca.mp4'))
+        ? path.join(folderPath, 'sem_marca.mp4')
+        : path.join(folderPath, 'original.mp4');
+      const baseVideoSec = getVideoDurationInSeconds(baseVideoForLimit);
+      const systemPrompt = baseVideoSec > 0
+        ? basePrompt + lengthInstruction(lang, narrationLimits(baseVideoSec, lang))
+        : basePrompt;
 
       const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',

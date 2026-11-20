@@ -20,6 +20,7 @@ const YT_DLP_PATH = process.env.YTDLP_BIN || (isWin ? path.join(TOOLS_DIR, 'yt-d
 const pythonExe = process.env.PYTHON_BIN || (isWin ? 'C:\\Users\\Maychel\\AppData\\Roaming\\VoiceStudio\\runtime\\project\\.venv\\Scripts\\python.exe' : 'python3');
 const { PT_BR_TRANSLATION_PROMPT, ES_TRANSLATION_PROMPT, EN_TRANSLATION_PROMPT, EN_POST_COPY_SYSTEM, resolveVoiceId } = require('./lang_config.js');
 const { ytDlpCommonArgsShell, ytDlpCommonArgs, fallbackFolderName, detectPlatform } = require('./media_download.js');
+const { narrationLimits, lengthInstruction, condenseInstruction, planFit, rhythmicSegments } = require('./narration_fit.js');
 
 function log(stage, msg) {
   const ts = new Date().toLocaleTimeString('pt-BR');
@@ -28,6 +29,37 @@ function log(stage, msg) {
 
 function sanitizeFolderName(name) {
   return name.normalize('NFKD').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_').slice(0, 80);
+}
+
+function probeDurationSec(file) {
+  try {
+    return parseFloat(execSync(`ffprobe -v quiet -show_entries format=duration -of csv="p=0" "${file}"`, { encoding: 'utf-8' }).trim());
+  } catch (_) {
+    return NaN;
+  }
+}
+
+async function chatCompletion(systemContent, userContent) {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemContent },
+        { role: 'user', content: userContent }
+      ],
+      temperature: 0.3
+    })
+  });
+  if (!res.ok) {
+    throw new Error(`OpenAI HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  }
+  const data = await res.json();
+  return (data.choices?.[0]?.message?.content || '').trim();
 }
 
 function normalizeScriptForTTS(text, lang = 'pt') {
@@ -217,50 +249,17 @@ async function runAutoPilot(inputTarget, options = {}) {
   log('TRANSCRIÇÃO', `Texto original: "${originalTranscript.slice(0, 80)}..."`);
 
   // ----------------------------------------------------
-  // ETAPA EXTRA (GERAL): CORTES RÍTMICOS NO VÍDEO (0.5s a cada 3.0s)
+  // DURAÇÃO DO VÍDEO BASE (define o tamanho do roteiro e o encaixe da narração)
   // ----------------------------------------------------
+  // Os cortes rítmicos agora são feitos por idioma, depois da narração, removendo só o tempo
+  // que o vídeo tiver de sobra (ver scripts/narration_fit.js).
   const videoBase = fs.existsSync(cleanVid) ? cleanVid : originalVid;
-  const cutVid = path.join(projectDir, 'video_cortado.mp4');
-  const shouldCut = startStepNum <= 6 || !fs.existsSync(cutVid);
-  if (shouldCut) {
-    log('CORTES', `Aplicando cortes rítmicos de retenção (0.5s a cada 3.0s de cena)...`);
-    try {
-      const cleanDur = parseFloat(execSync(`ffprobe -v quiet -show_entries format=duration -of csv="p=0" "${videoBase}"`, { encoding: 'utf-8' }).trim());
-      const keepSec = 3.0;
-      const cutSec = 0.5;
-
-      const segments = [];
-      let currentStart = 0;
-      while (currentStart < cleanDur) {
-        let currentEnd = currentStart + keepSec;
-        if (currentEnd > cleanDur) currentEnd = cleanDur;
-        segments.push({ start: currentStart, end: currentEnd });
-        currentStart = currentEnd + cutSec;
-      }
-
-      if (segments.length > 1) {
-        const filterParts = [];
-        const concatInputs = [];
-        segments.forEach((seg, i) => {
-          filterParts.push(`[0:v]trim=start=${seg.start.toFixed(3)}:end=${seg.end.toFixed(3)},setpts=PTS-STARTPTS[v${i}]`);
-          concatInputs.push(`[v${i}]`);
-        });
-        const filterComplexCut = `${filterParts.join(';')};${concatInputs.join('')}concat=n=${segments.length}:v=1:a=0[outv]`;
-        execSync(`ffmpeg -y -i "${videoBase}" -filter_complex "${filterComplexCut}" -map "[outv]" -c:v libx264 -preset fast -crf 19 "${cutVid}"`, { stdio: 'ignore' });
-        const cutDur = parseFloat(execSync(`ffprobe -v quiet -show_entries format=duration -of csv="p=0" "${cutVid}"`, { encoding: 'utf-8' }).trim());
-        log('CORTES', `Vídeo cortado ritmicamente com sucesso: ${cutDur.toFixed(2)}s (${segments.length} cortes)`);
-      } else {
-        fs.copyFileSync(videoBase, cutVid);
-      }
-    } catch (cutErr) {
-      log('CORTES', `Aviso ao aplicar cortes rítmicos: ${cutErr.message}. Mantendo vídeo contínuo.`);
-      if (!fs.existsSync(cutVid)) fs.copyFileSync(videoBase, cutVid);
-    }
-  } else {
-    log('CORTES', `Vídeo cortado video_cortado.mp4 já existente reaproveitado.`);
+  const baseDur = probeDurationSec(videoBase);
+  if (!(baseDur > 0)) {
+    throw new Error(`Não foi possível ler a duração do vídeo base: ${videoBase}`);
   }
+  log('CORTES', `Vídeo base com ${baseDur.toFixed(1)}s. Cortes rítmicos serão ajustados ao tamanho de cada narração.`);
 
-  const effectiveCutVid = fs.existsSync(cutVid) ? cutVid : videoBase;
   const outputs = {};
 
   // ----------------------------------------------------
@@ -292,34 +291,30 @@ async function runAutoPilot(inputTarget, options = {}) {
 
       if (process.env.OPENAI_API_KEY) {
         try {
-          const systemContent = isSpanish
+          const basePrompt = isSpanish
             ? ES_TRANSLATION_PROMPT
             : isEnglish
             ? EN_TRANSLATION_PROMPT
             : PT_BR_TRANSLATION_PROMPT;
 
-          const oaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
-            },
-            body: JSON.stringify({
-              model: 'gpt-4o-mini',
-              messages: [
-                { role: 'system', content: systemContent },
-                { role: 'user', content: originalTranscript }
-              ],
-              temperature: 0.3
-            })
-          });
-          if (oaiRes.ok) {
-            const oaiData = await oaiRes.json();
-            translatedText = (oaiData.choices?.[0]?.message?.content || '').trim();
-            if (!translatedText) translateError = 'OpenAI devolveu roteiro vazio';
-          } else {
-            translateError = `OpenAI HTTP ${oaiRes.status}: ${(await oaiRes.text()).slice(0, 300)}`;
+          // Limite de tamanho pela duração do vídeo: evita narração maior que o vídeo
+          // (que obrigava a acelerar a voz até ~1,9x)
+          const limits = narrationLimits(baseDur, lang);
+          log('TRADUÇÃO', `Limite do roteiro para ${baseDur.toFixed(0)}s de vídeo: ${limits.maxWords} palavras (~${limits.maxChars} caracteres).`);
+          translatedText = await chatCompletion(basePrompt + lengthInstruction(lang, limits), originalTranscript);
+
+          // Passou do limite com folga: pede uma versão condensada (uma vez)
+          if (translatedText && translatedText.length > limits.maxChars * 1.1) {
+            log('TRADUÇÃO', `Roteiro com ${translatedText.length} caracteres, acima do limite. Condensando...`);
+            try {
+              const condensed = await chatCompletion(condenseInstruction(lang, limits), translatedText);
+              if (condensed && condensed.length < translatedText.length) translatedText = condensed;
+            } catch (e) {
+              log('TRADUÇÃO', `Aviso: condensação falhou (${e.message}). Seguindo com o roteiro original.`);
+            }
           }
+          log('TRADUÇÃO', `Roteiro final: ${translatedText.length} caracteres (limite ${limits.maxChars}).`);
+          if (!translatedText) translateError = 'OpenAI devolveu roteiro vazio';
         } catch (e) {
           translateError = e.message;
         }
@@ -391,26 +386,48 @@ async function runAutoPilot(inputTarget, options = {}) {
     const effectiveAudio = fs.existsSync(trimmedAudio) ? trimmedAudio : rawAudio;
     const shouldMerge = startStepNum <= 7 || !fs.existsSync(finalVid);
     if (shouldMerge) {
-      log('SINCRONIA', `Mesclando vídeo cortado com a narração dublada (${lang.toUpperCase()})${withMusic ? ' [COM TRILHA OGRYZEK]' : ' [SEM TRILHA]'}...`);
-      const vDurMerge = parseFloat(execSync(`ffprobe -v quiet -show_entries format=duration -of csv="p=0" "${effectiveCutVid}"`, { encoding: 'utf-8' }).trim());
-      const aDurMerge = parseFloat(execSync(`ffprobe -v quiet -show_entries format=duration -of csv="p=0" "${effectiveAudio}"`, { encoding: 'utf-8' }).trim());
-      
-      let filterAudio = 'volume=1.0';
-      if (aDurMerge > vDurMerge * 1.1) {
-        const speed = Math.min(2.0, Math.max(0.5, aDurMerge / vDurMerge));
-        filterAudio = `atempo=${speed.toFixed(4)}`;
+      log('SINCRONIA', `Encaixando a narração no vídeo e mesclando (${lang.toUpperCase()})${withMusic ? ' [COM TRILHA OGRYZEK]' : ' [SEM TRILHA]'}...`);
+      const aDurMerge = probeDurationSec(effectiveAudio);
+      const plan = planFit(baseDur, aDurMerge);
+
+      // 1. Narração menor que o vídeo: cortes rítmicos removem só a sobra (máx. 14%)
+      let mergeVideo = videoBase;
+      if (plan.cutSec > 0) {
+        const cutVid = lang === 'pt' ? path.join(projectDir, 'video_cortado.mp4') : path.join(projectDir, `video_cortado_${lang}.mp4`);
+        const segments = rhythmicSegments(baseDur, plan.cutSec);
+        const filterParts = segments.map((seg, i) => `[0:v]trim=start=${seg.start.toFixed(3)}:end=${seg.end.toFixed(3)},setpts=PTS-STARTPTS[v${i}]`);
+        const concatInputs = segments.map((_, i) => `[v${i}]`).join('');
+        const filterComplexCut = `${filterParts.join(';')};${concatInputs}concat=n=${segments.length}:v=1:a=0[outv]`;
+        try {
+          execSync(`ffmpeg -y -i "${videoBase}" -filter_complex "${filterComplexCut}" -map "[outv]" -c:v libx264 -preset fast -crf 19 "${cutVid}"`, { stdio: 'ignore' });
+          mergeVideo = cutVid;
+          log('SINCRONIA', `Cortes rítmicos: ${plan.cutSec.toFixed(2)}s a cada 3s -> vídeo de ${probeDurationSec(cutVid).toFixed(1)}s para ${aDurMerge.toFixed(1)}s de narração.`);
+        } catch (cutErr) {
+          log('SINCRONIA', `Aviso ao aplicar cortes rítmicos: ${cutErr.message}. Mantendo vídeo contínuo.`);
+        }
+      } else if (plan.voiceTempo > 1 || plan.videoSlow > 1) {
+        // 2. Narração maior que o vídeo: voz acelera no máx. 1,10x e o vídeo desacelera o resto
+        log('SINCRONIA', `Narração (${aDurMerge.toFixed(1)}s) maior que o vídeo (${baseDur.toFixed(1)}s): voz ${plan.voiceTempo.toFixed(2)}x e vídeo desacelerado ${plan.videoSlow.toFixed(2)}x.`);
+      } else {
+        log('SINCRONIA', `Narração (${aDurMerge.toFixed(1)}s) cabe no vídeo (${baseDur.toFixed(1)}s) sem cortes nem aceleração.`);
       }
+
+      const voiceTempoFilter = plan.voiceTempo > 1.0005 ? `atempo=${plan.voiceTempo.toFixed(4)},` : '';
+      const videoSlowFilter = plan.videoSlow > 1.0005 ? `[0:v]setpts=PTS*${plan.videoSlow.toFixed(4)}[vout];` : '';
+      const videoArgs = videoSlowFilter ? '-map "[vout]" -c:v libx264 -preset fast -crf 19' : '-map 0:v:0 -c:v copy';
 
       const bgMusicFile = path.join(ROOT_DIR, 'assets', 'music', 'Ogryzek.mp3');
       const hasBgMusic = withMusic && fs.existsSync(bgMusicFile);
 
+      // -shortest: o vídeo termina junto com a narração
       let cmd = '';
-        if (hasBgMusic) {
-          const filterComplex = `[1:a]${filterAudio},aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,loudnorm=I=-14:TP=-1.5:LRA=7[voice];[2:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,volume=0.15[bg];[voice][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=channel_layouts=stereo[aout]`;
-          cmd = `ffmpeg -y -i "${effectiveCutVid}" -i "${effectiveAudio}" -stream_loop -1 -i "${bgMusicFile}" -filter_complex "${filterComplex}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalVid}"`;
-        } else {
-          cmd = `ffmpeg -y -i "${effectiveCutVid}" -i "${effectiveAudio}" -filter_complex "[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7,aformat=channel_layouts=stereo[aout]" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -movflags +faststart "${finalVid}"`;
-        }
+      if (hasBgMusic) {
+        const filterComplex = `${videoSlowFilter}[1:a]${voiceTempoFilter}aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,loudnorm=I=-14:TP=-1.5:LRA=7[voice];[2:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,volume=0.15[bg];[voice][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=channel_layouts=stereo[aout]`;
+        cmd = `ffmpeg -y -i "${mergeVideo}" -i "${effectiveAudio}" -stream_loop -1 -i "${bgMusicFile}" -filter_complex "${filterComplex}" ${videoArgs} -map "[aout]" -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalVid}"`;
+      } else {
+        const filterComplex = `${videoSlowFilter}[1:a]${voiceTempoFilter}loudnorm=I=-14:TP=-1.5:LRA=7,aformat=channel_layouts=stereo[aout]`;
+        cmd = `ffmpeg -y -i "${mergeVideo}" -i "${effectiveAudio}" -filter_complex "${filterComplex}" ${videoArgs} -map "[aout]" -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalVid}"`;
+      }
 
       execSync(cmd, { stdio: 'ignore' });
       if (lang === 'pt') {
