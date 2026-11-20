@@ -5,9 +5,10 @@
  * O roteiro-fonte é sempre a transcrição original em inglês (Whisper 'en'),
  * então o idioma 'en' faz uma adaptação viral em inglês, sem tradução.
  *
- * Voz MiniMax por idioma:
- *   pt, es -> MINIMAX_VOICE_ID (comportamento original)
- *   en     -> MINIMAX_VOICE_ID_EN (recomendado: uma voz clonada em inglês)
+ * Voz WStudios (ElevenLabs V4) por idioma:
+ *   pt -> WSTUDIOS_VOICE_ID_PT
+ *   es -> WSTUDIOS_VOICE_ID_ESP
+ *   en -> WSTUDIOS_VOICE_ID_EN
  */
 
 const PT_BR_TRANSLATION_PROMPT = `Você é um Roteirista Profissional e Storyteller de Elite para Vídeos Virais (TikTok, Reels, Shorts e Recaps de Filmes/Séries de Ação, Suspense e Drama).
@@ -67,26 +68,23 @@ Your task:
 const EN_POST_COPY_SYSTEM = 'You are an elite viral copywriter for short vertical videos. Reply only with valid JSON.';
 
 const VOICE_ENV = {
-  pt: 'MINIMAX_VOICE_ID',
-  es: 'MINIMAX_VOICE_ID_ES',
-  en: 'MINIMAX_VOICE_ID_EN'
+  pt: 'WSTUDIOS_VOICE_ID_PT',
+  es: 'WSTUDIOS_VOICE_ID_ESP',
+  en: 'WSTUDIOS_VOICE_ID_EN'
 };
 
 /**
- * Retorna o voice_id da MiniMax para o idioma.
- * Se houver uma variável de ambiente específica (ex: MINIMAX_VOICE_ID_ES, MINIMAX_VOICE_ID_EN),
- * ela é priorizada. Caso contrário, recai na voz padrão (geralmente PT).
+ * Retorna o voice_id WStudios (ElevenLabs V4) para o idioma.
+ * defaultVoice é ignorado se não for um voice_id WStudios válido (20 caracteres alfanuméricos),
+ * porque os chamadores ainda passam o padrão antigo da MiniMax.
  */
 function resolveVoiceId(lang, defaultVoice) {
   const envName = VOICE_ENV[lang];
   if (envName && process.env[envName]) return process.env[envName];
-  if (lang === 'en' && !process.env.MINIMAX_VOICE_ID_EN) {
-    console.warn('[LANG] MINIMAX_VOICE_ID_EN não configurada no .env; usando a voz padrão para inglês (pode soar com sotaque).');
+  if (envName) {
+    console.warn(`[LANG] ${envName} não configurada no .env para o idioma "${lang}".`);
   }
-  if (lang === 'es' && !process.env.MINIMAX_VOICE_ID_ES) {
-    console.warn('[LANG] MINIMAX_VOICE_ID_ES não configurada no .env; usando a voz padrão para espanhol.');
-  }
-  return defaultVoice;
+  return /^[A-Za-z0-9]{20}$/.test(defaultVoice || '') ? defaultVoice : (process.env.WSTUDIOS_VOICE_ID_PT || '');
 }
 
 module.exports = {

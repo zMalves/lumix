@@ -13,7 +13,7 @@ const { spawn, execSync } = require('node:child_process');
 if (typeof process.loadEnvFile === 'function') {
   try {
     process.loadEnvFile();
-  } catch (e) {}
+  } catch (e) { }
 }
 
 const PORT = process.env.DASHBOARD_PORT || 3333;
@@ -35,29 +35,6 @@ const { ytDlpCommonArgsShell, fallbackFolderName } = require('../scripts/media_d
 
 // Estado dos processos em background (ex: VMake)
 const activeJobs = new Map();
-
-// Mixer do Estúdio Manual: origVolume / voiceVolume chegam em % (0-200).
-// Sem origVolume, mantém o comportamento antigo (30% se "reduzir", senão 100%).
-function resolveMixVolumes(body = {}, reduceOriginalVolume = false) {
-  const toFactor = (pct, fallbackPct) => {
-    const n = Number(pct);
-    const v = (pct === undefined || pct === null || pct === '' || !Number.isFinite(n)) ? fallbackPct : n;
-    return (Math.min(200, Math.max(0, v)) / 100).toFixed(2);
-  };
-  return {
-    origVol: toFactor(body.origVolume, reduceOriginalVolume ? 30 : 100),
-    voiceVol: toFactor(body.voiceVolume, 100),
-    musicVol: toFactor(body.musicVolume, 100)
-  };
-}
-
-// Música de fundo: normalizada para MUSIC_LUFS antes do volume do mixer (100% = 12 dB abaixo da voz em -14 LUFS).
-// Um volume fixo (0.13) deixava a música ~21 dB abaixo da voz depois que a voz passou a sair em -14 LUFS.
-const MUSIC_LUFS = -26;
-function musicChain(musicVol = '1.00') {
-  // O aformat depois do aresample é obrigatório no ffmpeg 5.1 do contêiner (sem ele: "Cannot select channel layout").
-  return `aformat=sample_fmts=fltp:channel_layouts=stereo,loudnorm=I=${MUSIC_LUFS}:TP=-3:LRA=11,aresample=44100,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,volume=${musicVol}`;
-}
 
 function sendJson(res, statusCode, data) {
   res.writeHead(statusCode, {
@@ -138,7 +115,7 @@ function getProjectDetails(folderName) {
 
   let info = {};
   if (fs.existsSync(infoFile)) {
-    try { info = JSON.parse(fs.readFileSync(infoFile, 'utf-8')); } catch (e) {}
+    try { info = JSON.parse(fs.readFileSync(infoFile, 'utf-8')); } catch (e) { }
   }
 
   // Gera ou recupera ID único fixo para o projeto (ex: VID-E1C660)
@@ -147,7 +124,7 @@ function getProjectDetails(folderName) {
     info.id = 'VID-' + crypto.createHash('md5').update(folderName).digest('hex').slice(0, 6).toUpperCase();
     try {
       fs.writeFileSync(infoFile, JSON.stringify(info, null, 2), 'utf-8');
-    } catch (_) {}
+    } catch (_) { }
   }
 
   const squareSubtitledVideo = path.join(folderPath, 'video_1x1_legendado.mp4');
@@ -164,7 +141,7 @@ function getProjectDetails(folderName) {
   const postInfoFile = path.join(folderPath, 'post_info.json');
   let postCopy = null;
   if (fs.existsSync(postInfoFile)) {
-    try { postCopy = JSON.parse(fs.readFileSync(postInfoFile, 'utf-8')); } catch (e) {}
+    try { postCopy = JSON.parse(fs.readFileSync(postInfoFile, 'utf-8')); } catch (e) { }
   }
 
   // Detecção de idiomas disponíveis neste projeto
@@ -180,7 +157,7 @@ function getProjectDetails(folderName) {
         detectedLangs.add(m[1].toLowerCase());
       }
     }
-  } catch (_) {}
+  } catch (_) { }
 
   // Mapeia idiomas postados no YouTube (PT, ES ou Ambos)
   const postedLangs = new Set();
@@ -240,7 +217,7 @@ function getProjectDetails(folderName) {
 
     let lPostCopy = null;
     if (fs.existsSync(lPostFile)) {
-      try { lPostCopy = JSON.parse(fs.readFileSync(lPostFile, 'utf-8')); } catch (_) {}
+      try { lPostCopy = JSON.parse(fs.readFileSync(lPostFile, 'utf-8')); } catch (_) { }
     }
 
     const isPostedThisLang = postedLangs.has(l);
@@ -371,7 +348,7 @@ function getExistingVideosMap() {
   if (fs.existsSync(VIDEOS_DIR)) {
     try {
       const folders = fs.readdirSync(VIDEOS_DIR).filter(f => {
-        try { return fs.statSync(path.join(VIDEOS_DIR, f)).isDirectory(); } catch(e) { return false; }
+        try { return fs.statSync(path.join(VIDEOS_DIR, f)).isDirectory(); } catch (e) { return false; }
       });
 
       for (const f of folders) {
@@ -390,7 +367,7 @@ function getExistingVideosMap() {
               const urlId = extractId(info.url);
               if (urlId) foundId = urlId;
             }
-          } catch (_) {}
+          } catch (_) { }
         }
 
         if (foundId) {
@@ -424,7 +401,7 @@ function getExistingVideosMap() {
         }
       }
     }
-  } catch (_) {}
+  } catch (_) { }
 
   return { existingMap, existingTitles, cleanTitle };
 }
@@ -705,7 +682,7 @@ const server = http.createServer(async (req, res) => {
           voiceStudioOnline = true;
           voiceStudioInfo = await vsRes.json();
         }
-      } catch (e) {}
+      } catch (e) { }
 
       return sendJson(res, 200, {
         minimax: {
@@ -918,14 +895,14 @@ const server = http.createServer(async (req, res) => {
       const videoPath = fs.existsSync(path.join(folderPath, lang9x16))
         ? path.join(folderPath, lang9x16)
         : (fs.existsSync(path.join(folderPath, langFinal))
-            ? path.join(folderPath, langFinal)
-            : (fs.existsSync(path.join(folderPath, 'video_9x16.mp4'))
-                ? path.join(folderPath, 'video_9x16.mp4')
-                : (fs.existsSync(path.join(folderPath, 'final.mp4'))
-                    ? path.join(folderPath, 'final.mp4')
-                    : (fs.existsSync(path.join(folderPath, 'video_1x1_legendado.mp4'))
-                        ? path.join(folderPath, 'video_1x1_legendado.mp4')
-                        : path.join(folderPath, 'original.mp4')))));
+          ? path.join(folderPath, langFinal)
+          : (fs.existsSync(path.join(folderPath, 'video_9x16.mp4'))
+            ? path.join(folderPath, 'video_9x16.mp4')
+            : (fs.existsSync(path.join(folderPath, 'final.mp4'))
+              ? path.join(folderPath, 'final.mp4')
+              : (fs.existsSync(path.join(folderPath, 'video_1x1_legendado.mp4'))
+                ? path.join(folderPath, 'video_1x1_legendado.mp4')
+                : path.join(folderPath, 'original.mp4')))));
 
       try {
         const uploadRes = await youtubeManager.uploadShortVideo(channelId, videoPath, {
@@ -959,7 +936,7 @@ const server = http.createServer(async (req, res) => {
             else if (hasPt) info.status = 'posted_pt';
             else info.status = 'posted';
             fs.writeFileSync(infoFile, JSON.stringify(info, null, 2), 'utf-8');
-          } catch (e) {}
+          } catch (e) { }
         }
 
         return sendJson(res, 200, {
@@ -1124,7 +1101,7 @@ const server = http.createServer(async (req, res) => {
       const infoFile = path.join(folderPath, 'info.json');
       let info = {};
       if (fs.existsSync(infoFile)) {
-        try { info = JSON.parse(fs.readFileSync(infoFile, 'utf-8')); } catch (e) {}
+        try { info = JSON.parse(fs.readFileSync(infoFile, 'utf-8')); } catch (e) { }
       }
 
       if (typeof title === 'string' && title.trim()) {
@@ -1531,8 +1508,8 @@ const server = http.createServer(async (req, res) => {
       const systemPrompt = lang === 'es'
         ? ES_TRANSLATION_PROMPT
         : lang === 'en'
-        ? EN_TRANSLATION_PROMPT
-        : PT_BR_TRANSLATION_PROMPT;
+          ? EN_TRANSLATION_PROMPT
+          : PT_BR_TRANSLATION_PROMPT;
 
       const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -1561,7 +1538,7 @@ const server = http.createServer(async (req, res) => {
       const outScriptFile = lang === 'pt' ? 'roteiro_traduzido.txt' : `roteiro_traduzido_${lang}.txt`;
       fs.writeFileSync(path.join(folderPath, outScriptFile), translatedText, 'utf-8');
       if (lang === 'pt') {
-        try { fs.writeFileSync(path.join(folderPath, 'roteiro_traduzido_pt.txt'), translatedText, 'utf-8'); } catch (_) {}
+        try { fs.writeFileSync(path.join(folderPath, 'roteiro_traduzido_pt.txt'), translatedText, 'utf-8'); } catch (_) { }
       }
 
       // Registra idioma no info.json
@@ -1571,7 +1548,7 @@ const server = http.createServer(async (req, res) => {
           const info = JSON.parse(fs.readFileSync(infoFile, 'utf-8'));
           info.languages = Array.from(new Set([...(info.languages || ['pt']), lang]));
           fs.writeFileSync(infoFile, JSON.stringify(info, null, 2), 'utf-8');
-        } catch (_) {}
+        } catch (_) { }
       }
 
       return sendJson(res, 200, {
@@ -1614,7 +1591,7 @@ const server = http.createServer(async (req, res) => {
         execSync(`node "${minimaxScript}" "${tempTxt}" "${audioPath}" "${minimaxVoice}" ${parseFloat(speed) || 1.3}`, { timeout: 180000 });
         if (fs.existsSync(tempTxt)) fs.unlinkSync(tempTxt);
         if (lang === 'pt') {
-          try { fs.copyFileSync(audioPath, path.join(folderPath, 'narracao_pt.mp3')); } catch (_) {}
+          try { fs.copyFileSync(audioPath, path.join(folderPath, 'narracao_pt.mp3')); } catch (_) { }
         }
       } catch (genErr) {
         if (fs.existsSync(tempTxt)) fs.unlinkSync(tempTxt);
@@ -1632,7 +1609,7 @@ const server = http.createServer(async (req, res) => {
           const trimScript = path.join(ROOT_DIR, 'scripts', 'trim-silence.py');
           execSync(`"${PYTHON_BIN}" "${trimScript}" "${audioPath}" "${trimmedPath}" ${parseInt(minSilence) || 350} ${parseInt(keepSilence) || 200}`, { stdio: 'ignore' });
           if (lang === 'pt') {
-            try { fs.copyFileSync(trimmedPath, path.join(folderPath, 'narracao_trimmed_pt.mp3')); } catch (_) {}
+            try { fs.copyFileSync(trimmedPath, path.join(folderPath, 'narracao_trimmed_pt.mp3')); } catch (_) { }
           }
         } catch (trimErr) {
           console.warn('[Trim Silence Warning]', trimErr.message);
@@ -1667,7 +1644,7 @@ const server = http.createServer(async (req, res) => {
       try {
         const out = execSync(`"${PYTHON_BIN}" "${trimScript}" "${audioPath}" "${trimmedPath}" ${parseInt(minSilence) || 350} ${parseInt(keepSilence) || 200}`, { encoding: 'utf-8' });
         if (lang === 'pt') {
-          try { fs.copyFileSync(trimmedPath, path.join(folderPath, 'narracao_trimmed_pt.mp3')); } catch (_) {}
+          try { fs.copyFileSync(trimmedPath, path.join(folderPath, 'narracao_trimmed_pt.mp3')); } catch (_) { }
         }
         return sendJson(res, 200, {
           success: true,
@@ -1760,8 +1737,8 @@ const server = http.createServer(async (req, res) => {
       const audioFile = fs.existsSync(path.join(folderPath, trimmedName))
         ? path.join(folderPath, trimmedName)
         : (fs.existsSync(path.join(folderPath, rawName))
-            ? path.join(folderPath, rawName)
-            : path.join(folderPath, 'narracao.mp3'));
+          ? path.join(folderPath, rawName)
+          : path.join(folderPath, 'narracao.mp3'));
 
       const finalFile = path.join(folderPath, finalName);
 
@@ -1800,7 +1777,7 @@ const server = http.createServer(async (req, res) => {
         console.log(`[Merge] Executando comando de mesclagem para idioma: [${lang.toUpperCase()}] [Com música: ${hasBgMusic}]...`);
         execSync(cmd, { stdio: 'inherit' });
         if (lang === 'pt') {
-          try { fs.copyFileSync(finalFile, path.join(folderPath, 'final_pt.mp4')); } catch (_) {}
+          try { fs.copyFileSync(finalFile, path.join(folderPath, 'final_pt.mp4')); } catch (_) { }
         }
 
         try {
@@ -1809,7 +1786,7 @@ const server = http.createServer(async (req, res) => {
           if (fs.existsSync(infoPath)) curInfo = JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
           curInfo.withMusic = Boolean(hasBgMusic);
           fs.writeFileSync(infoPath, JSON.stringify(curInfo, null, 2), 'utf-8');
-        } catch (_) {}
+        } catch (_) { }
 
         return sendJson(res, 200, {
           success: true,
@@ -1840,12 +1817,12 @@ const server = http.createServer(async (req, res) => {
       const inputVid = fs.existsSync(path.join(folderPath, finalName))
         ? path.join(folderPath, finalName)
         : (fs.existsSync(path.join(folderPath, 'final.mp4'))
-            ? path.join(folderPath, 'final.mp4')
-            : (fs.existsSync(path.join(folderPath, 'video_cortado.mp4'))
-                ? path.join(folderPath, 'video_cortado.mp4')
-                : (fs.existsSync(path.join(folderPath, 'sem_marca.mp4'))
-                    ? path.join(folderPath, 'sem_marca.mp4')
-                    : path.join(folderPath, 'original.mp4'))));
+          ? path.join(folderPath, 'final.mp4')
+          : (fs.existsSync(path.join(folderPath, 'video_cortado.mp4'))
+            ? path.join(folderPath, 'video_cortado.mp4')
+            : (fs.existsSync(path.join(folderPath, 'sem_marca.mp4'))
+              ? path.join(folderPath, 'sem_marca.mp4')
+              : path.join(folderPath, 'original.mp4'))));
 
       const subFile = path.join(folderPath, subName);
       const output9x16 = path.join(folderPath, out9x16Name);
@@ -1855,14 +1832,14 @@ const server = http.createServer(async (req, res) => {
         // 1. Gera legendas ASS palavra por palavra passando o idioma
         execSync(`"${PYTHON_BIN}" "${subScript}" "${inputVid}" "${subFile}" "${lang}"`, { stdio: 'inherit' });
         if (lang === 'pt') {
-          try { fs.copyFileSync(subFile, path.join(folderPath, 'legendas_pt.ass')); } catch (_) {}
+          try { fs.copyFileSync(subFile, path.join(folderPath, 'legendas_pt.ass')); } catch (_) { }
         }
 
         // 2. Renderiza formato 9:16 vertical Full HD com Anti-Duplicate Hash
         let hasAudio = false;
         try {
           hasAudio = execSync(`ffprobe -v error -select_streams a -show_entries stream=codec_type -of default=noprint_wrappers=1:nokey=1 "${inputVid}"`, { encoding: 'utf-8' }).trim().length > 0;
-        } catch (_) {}
+        } catch (_) { }
 
         const subEscaped = subFile.replace(/\\/g, '/').replace(/:/g, '\\:');
         const useHflip = hflip !== false;
@@ -1887,7 +1864,7 @@ const server = http.createServer(async (req, res) => {
             fs.copyFileSync(output9x16, path.join(folderPath, 'video_9x16_pt.mp4'));
             fs.copyFileSync(output9x16, path.join(folderPath, 'video_9x16_crop_quadrado.mp4'));
             fs.copyFileSync(output9x16, path.join(folderPath, 'video_1x1_legendado.mp4'));
-          } catch (_) {}
+          } catch (_) { }
         }
 
         // Previews atualizados para auditoria
@@ -1898,7 +1875,7 @@ const server = http.createServer(async (req, res) => {
             execSync(`ffmpeg -y -ss 00:00:05 -i "${output9x16}" -vframes 1 -q:v 2 "${path.join(folderPath, 'final_val_5s.jpg')}"`, { stdio: 'ignore' });
             execSync(`ffmpeg -y -ss 00:00:20 -i "${output9x16}" -vframes 1 -q:v 2 "${path.join(folderPath, 'final_val_20s.jpg')}"`, { stdio: 'ignore' });
           }
-        } catch (e) {}
+        } catch (e) { }
 
         // 3. Gera automaticamente os títulos e legendas para postar naquele idioma
         try {
@@ -1932,7 +1909,7 @@ const server = http.createServer(async (req, res) => {
       const infoPath = path.join(folderPath, 'info.json');
       let info = {};
       if (fs.existsSync(infoPath)) {
-        try { info = JSON.parse(fs.readFileSync(infoPath, 'utf-8')); } catch (_) {}
+        try { info = JSON.parse(fs.readFileSync(infoPath, 'utf-8')); } catch (_) { }
       }
       info.languages = Array.from(new Set([...(info.languages || ['pt']), lang.toLowerCase()]));
       fs.writeFileSync(infoPath, JSON.stringify(info, null, 2), 'utf-8');
@@ -1982,7 +1959,7 @@ const server = http.createServer(async (req, res) => {
         height = parseInt(p.streams?.[0]?.height || 0, 10);
         const audioProbe = execSync(`ffprobe -v error -select_streams a -show_entries stream=codec_type -of default=noprint_wrappers=1:nokey=1 "${targetFile}"`, { encoding: 'utf-8' }).trim();
         hasAudio = audioProbe.length > 0;
-      } catch (_) {}
+      } catch (_) { }
 
       const crypto = require('node:crypto');
       const info = {
@@ -2035,7 +2012,7 @@ const server = http.createServer(async (req, res) => {
         height = parseInt(p.streams?.[0]?.height || 0, 10);
         const audioProbe = execSync(`ffprobe -v error -select_streams a -show_entries stream=codec_type -of default=noprint_wrappers=1:nokey=1 "${fullVid}"`, { encoding: 'utf-8' }).trim();
         hasAudio = audioProbe.length > 0;
-      } catch (_) {}
+      } catch (_) { }
 
       let existingScript = '';
       if (fs.existsSync(path.join(folderPath, 'roteiro_manual.txt'))) {
@@ -2086,7 +2063,7 @@ const server = http.createServer(async (req, res) => {
         execSync(`node "${minimaxScript}" "${tempTxt}" "${audioPath}" "${voiceId}" ${parseFloat(speed) || 1.05}`, { timeout: 180000 });
         if (fs.existsSync(tempTxt)) fs.unlinkSync(tempTxt);
         if (lang === 'pt') {
-          try { fs.copyFileSync(audioPath, path.join(folderPath, 'narracao_pt.mp3')); } catch (_) {}
+          try { fs.copyFileSync(audioPath, path.join(folderPath, 'narracao_pt.mp3')); } catch (_) { }
         }
       } catch (genErr) {
         if (fs.existsSync(tempTxt)) fs.unlinkSync(tempTxt);
@@ -2100,7 +2077,7 @@ const server = http.createServer(async (req, res) => {
       let duration = 0;
       try {
         duration = parseFloat(execSync(`ffprobe -v quiet -show_entries format=duration -of csv="p=0" "${audioPath}"`, { encoding: 'utf-8' }).trim());
-      } catch (_) {}
+      } catch (_) { }
 
       return sendJson(res, 200, {
         success: true,
@@ -2132,7 +2109,7 @@ const server = http.createServer(async (req, res) => {
       try {
         const stdout = execSync(`"${PYTHON_BIN}" "${trimScript}" "${inPath}" "${outPath}" ${parseInt(minSilence) || 350} ${parseInt(keepSilence) || 200}`, { encoding: 'utf-8' });
         if (lang === 'pt') {
-          try { fs.copyFileSync(outPath, path.join(folderPath, 'narracao_trimmed_pt.mp3')); } catch (_) {}
+          try { fs.copyFileSync(outPath, path.join(folderPath, 'narracao_trimmed_pt.mp3')); } catch (_) { }
         }
 
         let origDur = 0;
@@ -2140,7 +2117,7 @@ const server = http.createServer(async (req, res) => {
         try {
           origDur = parseFloat(execSync(`ffprobe -v quiet -show_entries format=duration -of csv="p=0" "${inPath}"`, { encoding: 'utf-8' }).trim());
           newDur = parseFloat(execSync(`ffprobe -v quiet -show_entries format=duration -of csv="p=0" "${outPath}"`, { encoding: 'utf-8' }).trim());
-        } catch (_) {}
+        } catch (_) { }
 
         return sendJson(res, 200, {
           success: true,
@@ -2158,10 +2135,19 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
-    // 4. Juntar Narração + Vídeo + Trilha Sonora (com opção de manter áudio original e acelerar para caber no vídeo)
+    // 4. Juntar Narração + Vídeo + Trilha Sonora (com Mixer de Áudio: Voz, Áudio Original e Música)
     if (pathname === '/api/manual/merge-sync' && req.method === 'POST') {
-      const mixBody = await parseBody(req);
-      const { project, lang = 'pt', keepOriginalAudio = false, reduceOriginalVolume = false, withMusic = true, fitAudioSpeed = true } = mixBody;
+      const {
+        project,
+        lang = 'pt',
+        keepOriginalAudio = false,
+        reduceOriginalVolume = false,
+        withMusic = true,
+        fitAudioSpeed = true,
+        voiceVolume = 100,
+        originalVolume,
+        musicVolume = 13
+      } = await parseBody(req);
       if (!project) return sendJson(res, 400, { error: 'Nome do projeto necessário' });
       const folderPath = path.join(VIDEOS_DIR, project);
       if (!fs.existsSync(folderPath)) return sendJson(res, 404, { error: 'Pasta do projeto não encontrada' });
@@ -2201,7 +2187,7 @@ const server = http.createServer(async (req, res) => {
       try {
         const audioProbe = execSync(`ffprobe -v error -select_streams a -show_entries stream=codec_type -of default=noprint_wrappers=1:nokey=1 "${videoFile}"`, { encoding: 'utf-8' }).trim();
         videoHasAudio = audioProbe.length > 0;
-      } catch (_) {}
+      } catch (_) { }
 
       const bgMusicFile = path.join(ROOT_DIR, 'assets', 'music', 'Ogryzek.mp3');
       const hasBgMusic = Boolean(withMusic) && fs.existsSync(bgMusicFile);
@@ -2209,32 +2195,65 @@ const server = http.createServer(async (req, res) => {
       const finalName = lang === 'pt' ? 'final.mp4' : `final_${lang}.mp4`;
       const finalFile = path.join(folderPath, finalName);
 
-      const { origVol, voiceVol, musicVol } = resolveMixVolumes(mixBody, reduceOriginalVolume);
+      // MIXER DE ÁUDIO MULTI-PISTAS
+      // 1. Voz (0% a 200%, default 100% -> 1.0)
+      const vPercent = Math.max(0, Math.min(200, parseFloat(voiceVolume) ?? 100));
+      const voiceScale = (vPercent / 100).toFixed(2);
 
-      let cmd = '';
-      if (keepOriginalAudio && videoHasAudio) {
-        if (hasBgMusic) {
-          const filter = `[0:a]volume=${origVol}[orig_a];[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7,volume=${voiceVol}[voice];[2:a]${musicChain(musicVol)}[bg];[orig_a][voice][bg]amix=inputs=3:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
-          cmd = `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -stream_loop -1 -i "${bgMusicFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
-        } else {
-          const filter = `[0:a]volume=${origVol}[orig_a];[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7,volume=${voiceVol}[voice];[orig_a][voice]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
-          cmd = `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
-        }
-      } else {
-        if (hasBgMusic) {
-          const filter = `[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7,volume=${voiceVol}[voice];[2:a]${musicChain(musicVol)}[bg];[voice][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
-          cmd = `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -stream_loop -1 -i "${bgMusicFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
-        } else {
-          const filter = `[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7,volume=${voiceVol},aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
-          cmd = `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
-        }
+      // 2. Áudio original (0% a 150%)
+      let oPercent = 0;
+      if (originalVolume !== undefined && originalVolume !== null && originalVolume !== '') {
+        oPercent = Math.max(0, Math.min(150, parseFloat(originalVolume)));
+      } else if (keepOriginalAudio) {
+        oPercent = reduceOriginalVolume ? 30 : 100;
       }
+      const origScale = (oPercent / 100).toFixed(2);
+      const includeOriginal = videoHasAudio && oPercent > 0;
+
+      // 3. Música de fundo (0% a 100%)
+      let mPercent = 0;
+      if (withMusic && hasBgMusic) {
+        mPercent = musicVolume !== undefined && musicVolume !== null && musicVolume !== ''
+          ? Math.max(0, Math.min(100, parseFloat(musicVolume)))
+          : 13;
+      }
+      const musicScale = (mPercent / 100).toFixed(2);
+      const includeMusic = hasBgMusic && mPercent > 0;
+
+      let ffmpegInputs = `-i "${videoFile}" -i "${audioFile}"`;
+      const filterParts = [];
+      const mixInputs = [];
+
+      if (includeOriginal) {
+        filterParts.push(`[0:a]volume=${origScale}[orig_a]`);
+        mixInputs.push('[orig_a]');
+      }
+
+      filterParts.push(`[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7,volume=${voiceScale}[voice]`);
+      mixInputs.push('[voice]');
+
+      if (includeMusic) {
+        ffmpegInputs += ` -stream_loop -1 -i "${bgMusicFile}"`;
+        filterParts.push(`[2:a]volume=${musicScale}[bg]`);
+        mixInputs.push('[bg]');
+      }
+
+      let finalAudioFilter = '';
+      if (mixInputs.length > 1) {
+        filterParts.push(`${mixInputs.join('')}amix=inputs=${mixInputs.length}:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`);
+        finalAudioFilter = filterParts.join(';');
+      } else {
+        filterParts.push(`[voice]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`);
+        finalAudioFilter = filterParts.join(';');
+      }
+
+      const cmd = `ffmpeg -y ${ffmpegInputs} -filter_complex "${finalAudioFilter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
 
       try {
         console.log(`[Manual Merge] Mesclando áudio e vídeo (${lang.toUpperCase()}) [Música: ${hasBgMusic}] [Áudio original: ${keepOriginalAudio && videoHasAudio}] [Aceleração: ${speedFactor.toFixed(2)}x]...`);
         execSync(cmd, { stdio: 'inherit' });
         if (lang === 'pt') {
-          try { fs.copyFileSync(finalFile, path.join(folderPath, 'final_pt.mp4')); } catch (_) {}
+          try { fs.copyFileSync(finalFile, path.join(folderPath, 'final_pt.mp4')); } catch (_) { }
         }
 
         return sendJson(res, 200, {
@@ -2299,8 +2318,7 @@ const server = http.createServer(async (req, res) => {
 
     // 5. Etapa final: 4:5 para 9:16 Full HD com bordas desfocadas + opacidade reduzida + legendas (Sem anti-hash)
     if (pathname === '/api/manual/render-4x5-to-9x16' && req.method === 'POST') {
-      const mixBody = await parseBody(req);
-      const { project, lang = 'auto', useBaseVideo = false, keepOriginalAudio = true, reduceOriginalVolume = false, withMusic = true } = mixBody;
+      const { project, lang = 'auto', useBaseVideo = false, keepOriginalAudio = true, reduceOriginalVolume = false, withMusic = true, originalVolume = null, musicVolume = null } = await parseBody(req);
       if (!project) return sendJson(res, 400, { error: 'Nome do projeto necessário' });
       const folderPath = path.join(VIDEOS_DIR, project);
       if (!fs.existsSync(folderPath)) return sendJson(res, 404, { error: 'Pasta do projeto não encontrada' });
@@ -2319,8 +2337,8 @@ const server = http.createServer(async (req, res) => {
       const baseVideo = fs.existsSync(path.join(folderPath, 'sem_marca.mp4'))
         ? path.join(folderPath, 'sem_marca.mp4')
         : (fs.existsSync(path.join(folderPath, 'original.mp4'))
-            ? path.join(folderPath, 'original.mp4')
-            : null);
+          ? path.join(folderPath, 'original.mp4')
+          : null);
 
       let inputVid = null;
       if (useBaseVideo) {
@@ -2371,19 +2389,22 @@ const server = http.createServer(async (req, res) => {
           try {
             const audioProbe = execSync(`ffprobe -v error -select_streams a -show_entries stream=codec_type -of default=noprint_wrappers=1:nokey=1 "${inputVid}"`, { encoding: 'utf-8' }).trim();
             videoHasAudio = audioProbe.length > 0;
-          } catch (_) {}
+          } catch (_) { }
 
           const bgMusicFile = path.join(ROOT_DIR, 'assets', 'music', 'Ogryzek.mp3');
-          const hasBgMusic = Boolean(withMusic) && fs.existsSync(bgMusicFile);
+          const musicScale = (musicVolume !== null && musicVolume !== undefined)
+            ? (Math.max(0, Math.min(100, Number(musicVolume))) / 100).toFixed(2)
+            : '0.14';
+          const hasBgMusic = Boolean(withMusic) && (Number(musicScale) > 0) && fs.existsSync(bgMusicFile);
 
           if (videoHasAudio) {
             console.log(`[Manual Master] Gerando legendas dinâmicas (${effectiveLang.toUpperCase()})...`);
             try {
               execSync(`"${PYTHON_BIN}" "${subScript}" "${inputVid}" "${subFile}" "${effectiveLang}"`, { stdio: 'inherit' });
               if (effectiveLang === 'pt') {
-                try { fs.copyFileSync(subFile, path.join(folderPath, 'legendas_pt.ass')); } catch (_) {}
+                try { fs.copyFileSync(subFile, path.join(folderPath, 'legendas_pt.ass')); } catch (_) { }
               } else {
-                try { fs.copyFileSync(subFile, path.join(folderPath, 'legendas.ass')); } catch (_) {}
+                try { fs.copyFileSync(subFile, path.join(folderPath, 'legendas.ass')); } catch (_) { }
               }
             } catch (whisperErr) {
               console.warn('[Manual Master] Aviso ao transcrever legendas com Whisper:', whisperErr.message);
@@ -2414,26 +2435,24 @@ const server = http.createServer(async (req, res) => {
           let extraFlags = '';
 
           if (useBaseVideo) {
-            const hasOrig = videoHasAudio && (keepOriginalAudio !== false);
-            const { origVol, voiceVol, musicVol } = resolveMixVolumes(mixBody, reduceOriginalVolume);
+            const origScale = (originalVolume !== null && originalVolume !== undefined)
+              ? (Math.max(0, Math.min(150, Number(originalVolume))) / 100).toFixed(2)
+              : (reduceOriginalVolume ? '0.30' : '1.00');
+            const hasOrig = videoHasAudio && (keepOriginalAudio !== false) && (Number(origScale) > 0);
 
             if (hasOrig && hasBgMusic) {
               ffmpegInputs = `-i "${inputVid}" -stream_loop -1 -i "${bgMusicFile}"`;
-              filterParts.push(`[0:a]volume=${origVol}[orig_a]`);
-              filterParts.push(`[1:a]${musicChain(musicVol)}[bg_music]`);
+              filterParts.push(`[0:a]volume=${origScale}[orig_a]`);
+              filterParts.push(`[1:a]volume=${musicScale}[bg_music]`);
               filterParts.push(`[orig_a][bg_music]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[outa]`);
               audioMaps = '-map "[outa]"';
               extraFlags = '-shortest';
             } else if (hasOrig && !hasBgMusic) {
-              if (reduceOriginalVolume || origVol !== '1.00') {
-                filterParts.push(`[0:a]volume=${origVol},aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[outa]`);
-                audioMaps = '-map "[outa]"';
-              } else {
-                audioMaps = '-map 0:a';
-              }
+              filterParts.push(`[0:a]volume=${origScale},aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[outa]`);
+              audioMaps = '-map "[outa]"';
             } else if (!hasOrig && hasBgMusic) {
               ffmpegInputs = `-i "${inputVid}" -stream_loop -1 -i "${bgMusicFile}"`;
-              filterParts.push(`[1:a]${musicChain(musicVol)},aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[outa]`);
+              filterParts.push(`[1:a]volume=${musicScale},aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[outa]`);
               audioMaps = '-map "[outa]"';
               extraFlags = '-shortest';
             } else {
@@ -2450,18 +2469,18 @@ const server = http.createServer(async (req, res) => {
             fs.copyFileSync(output9x16, path.join(folderPath, `video_9x16_${effectiveLang}.mp4`));
             fs.copyFileSync(output9x16, path.join(folderPath, 'video_9x16_crop_quadrado.mp4'));
             fs.copyFileSync(output9x16, path.join(folderPath, 'video_1x1_legendado.mp4'));
-          } catch (_) {}
+          } catch (_) { }
 
           try {
             execSync(`ffmpeg -y -ss 00:00:05 -i "${output9x16}" -vframes 1 -q:v 2 "${path.join(folderPath, `final_val_5s_${effectiveLang}.jpg`)}"`, { stdio: 'ignore' });
             execSync(`ffmpeg -y -ss 00:00:20 -i "${output9x16}" -vframes 1 -q:v 2 "${path.join(folderPath, `final_val_20s_${effectiveLang}.jpg`)}"`, { stdio: 'ignore' });
             fs.copyFileSync(path.join(folderPath, `final_val_5s_${effectiveLang}.jpg`), path.join(folderPath, 'final_val_5s.jpg'));
             fs.copyFileSync(path.join(folderPath, `final_val_20s_${effectiveLang}.jpg`), path.join(folderPath, 'final_val_20s.jpg'));
-          } catch (_) {}
+          } catch (_) { }
 
           try {
             await generatePostCopyForProject(project, effectiveLang);
-          } catch (_) {}
+          } catch (_) { }
 
           manualRenderJobs[jobKey] = {
             status: 'done',
@@ -2483,8 +2502,7 @@ const server = http.createServer(async (req, res) => {
 
     // 6. Pipeline 1-Clique: executa todo o fluxo manual de ponta a ponta
     if (pathname === '/api/manual/run-all' && req.method === 'POST') {
-      const mixBody = await parseBody(req);
-      const { project, text, lang = 'pt', keepOriginalAudio = false, reduceOriginalVolume = false, withMusic = true, fitAudioSpeed = true, speed = 1.05 } = mixBody;
+      const { project, text, lang = 'pt', keepOriginalAudio = false, reduceOriginalVolume = false, withMusic = true, fitAudioSpeed = true, speed = 1.05, voiceVolume = 100, originalVolume, musicVolume = 13 } = await parseBody(req);
       if (!project) return sendJson(res, 400, { error: 'Nome do projeto necessário' });
       if (!text || !text.trim()) return sendJson(res, 400, { error: 'Roteiro de narração não pode estar vazio' });
 
@@ -2507,7 +2525,7 @@ const server = http.createServer(async (req, res) => {
         execSync(`node "${minimaxScript}" "${tempTxt}" "${audioPath}" "${voiceId}" ${parseFloat(speed) || 1.05}`, { timeout: 180000 });
         if (fs.existsSync(tempTxt)) fs.unlinkSync(tempTxt);
         if (lang === 'pt') {
-          try { fs.copyFileSync(audioPath, path.join(folderPath, 'narracao_pt.mp3')); } catch (_) {}
+          try { fs.copyFileSync(audioPath, path.join(folderPath, 'narracao_pt.mp3')); } catch (_) { }
         }
 
         // Etapa 3: Trim Silêncios
@@ -2516,7 +2534,7 @@ const server = http.createServer(async (req, res) => {
         const trimScript = path.join(ROOT_DIR, 'scripts', 'trim-silence.py');
         execSync(`"${PYTHON_BIN}" "${trimScript}" "${audioPath}" "${trimmedPath}" 350 200`, { encoding: 'utf-8' });
         if (lang === 'pt') {
-          try { fs.copyFileSync(trimmedPath, path.join(folderPath, 'narracao_trimmed_pt.mp3')); } catch (_) {}
+          try { fs.copyFileSync(trimmedPath, path.join(folderPath, 'narracao_trimmed_pt.mp3')); } catch (_) { }
         }
 
         // Etapa 4: Mesclar Áudio + Vídeo + Trilha
@@ -2544,36 +2562,66 @@ const server = http.createServer(async (req, res) => {
         try {
           const audioProbe = execSync(`ffprobe -v error -select_streams a -show_entries stream=codec_type -of default=noprint_wrappers=1:nokey=1 "${videoFile}"`, { encoding: 'utf-8' }).trim();
           videoHasAudio = audioProbe.length > 0;
-        } catch (_) {}
+        } catch (_) { }
 
         const bgMusicFile = path.join(ROOT_DIR, 'assets', 'music', 'Ogryzek.mp3');
         const hasBgMusic = Boolean(withMusic) && fs.existsSync(bgMusicFile);
 
         const finalName = lang === 'pt' ? 'final.mp4' : `final_${lang}.mp4`;
         const finalFile = path.join(folderPath, finalName);
-        const { origVol, voiceVol, musicVol } = resolveMixVolumes(mixBody, reduceOriginalVolume);
+        // MIXER DE ÁUDIO MULTI-PISTAS
+        const vPercent = Math.max(0, Math.min(200, parseFloat(voiceVolume) ?? 100));
+        const voiceScale = (vPercent / 100).toFixed(2);
 
-        let cmdMerge = '';
-        if (keepOriginalAudio && videoHasAudio) {
-          if (hasBgMusic) {
-            const filter = `[0:a]volume=${origVol}[orig_a];[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7,volume=${voiceVol}[voice];[2:a]${musicChain(musicVol)}[bg];[orig_a][voice][bg]amix=inputs=3:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
-            cmdMerge = `ffmpeg -y -i "${videoFile}" -i "${trimmedPath}" -stream_loop -1 -i "${bgMusicFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
-          } else {
-            const filter = `[0:a]volume=${origVol}[orig_a];[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7,volume=${voiceVol}[voice];[orig_a][voice]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
-            cmdMerge = `ffmpeg -y -i "${videoFile}" -i "${trimmedPath}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
-          }
-        } else {
-          if (hasBgMusic) {
-            const filter = `[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7,volume=${voiceVol}[voice];[2:a]${musicChain(musicVol)}[bg];[voice][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
-            cmdMerge = `ffmpeg -y -i "${videoFile}" -i "${trimmedPath}" -stream_loop -1 -i "${bgMusicFile}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
-          } else {
-            const filter = `[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7,volume=${voiceVol},aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`;
-            cmdMerge = `ffmpeg -y -i "${videoFile}" -i "${trimmedPath}" -filter_complex "${filter}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
-          }
+        let oPercent = 0;
+        if (originalVolume !== undefined && originalVolume !== null && originalVolume !== '') {
+          oPercent = Math.max(0, Math.min(150, parseFloat(originalVolume)));
+        } else if (keepOriginalAudio) {
+          oPercent = reduceOriginalVolume ? 30 : 100;
         }
+        const origScale = (oPercent / 100).toFixed(2);
+        const includeOriginal = videoHasAudio && oPercent > 0;
+
+        let mPercent = 0;
+        if (withMusic && hasBgMusic) {
+          mPercent = musicVolume !== undefined && musicVolume !== null && musicVolume !== ''
+            ? Math.max(0, Math.min(100, parseFloat(musicVolume)))
+            : 13;
+        }
+        const musicScale = (mPercent / 100).toFixed(2);
+        const includeMusic = hasBgMusic && mPercent > 0;
+
+        let ffmpegInputsMerge = `-i "${videoFile}" -i "${trimmedPath}"`;
+        const filterPartsMerge = [];
+        const mixInputsMerge = [];
+
+        if (includeOriginal) {
+          filterPartsMerge.push(`[0:a]volume=${origScale}[orig_a]`);
+          mixInputsMerge.push('[orig_a]');
+        }
+
+        filterPartsMerge.push(`[1:a]${filterAudio},loudnorm=I=-14:TP=-1.5:LRA=7,volume=${voiceScale}[voice]`);
+        mixInputsMerge.push('[voice]');
+
+        if (includeMusic) {
+          ffmpegInputsMerge += ` -stream_loop -1 -i "${bgMusicFile}"`;
+          filterPartsMerge.push(`[2:a]volume=${musicScale}[bg]`);
+          mixInputsMerge.push('[bg]');
+        }
+
+        let finalAudioFilterMerge = '';
+        if (mixInputsMerge.length > 1) {
+          filterPartsMerge.push(`${mixInputsMerge.join('')}amix=inputs=${mixInputsMerge.length}:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`);
+          finalAudioFilterMerge = filterPartsMerge.join(';');
+        } else {
+          filterPartsMerge.push(`[voice]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`);
+          finalAudioFilterMerge = filterPartsMerge.join(';');
+        }
+
+        const cmdMerge = `ffmpeg -y ${ffmpegInputsMerge} -filter_complex "${finalAudioFilterMerge}" -map 0:v:0 -map "[aout]" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${finalFile}"`;
         execSync(cmdMerge, { stdio: 'inherit' });
         if (lang === 'pt') {
-          try { fs.copyFileSync(finalFile, path.join(folderPath, 'final_pt.mp4')); } catch (_) {}
+          try { fs.copyFileSync(finalFile, path.join(folderPath, 'final_pt.mp4')); } catch (_) { }
         }
 
         // Etapa 5: Render 4:5 -> 9:16 Full HD + Legendas
@@ -2585,7 +2633,7 @@ const server = http.createServer(async (req, res) => {
 
         execSync(`"${PYTHON_BIN}" "${subScript}" "${finalFile}" "${subFile}" "${lang}"`, { stdio: 'inherit' });
         if (lang === 'pt') {
-          try { fs.copyFileSync(subFile, path.join(folderPath, 'legendas_pt.ass')); } catch (_) {}
+          try { fs.copyFileSync(subFile, path.join(folderPath, 'legendas_pt.ass')); } catch (_) { }
         }
 
         const subEscaped = subFile.replace(/\\/g, '/').replace(/:/g, '\\:');
@@ -2604,7 +2652,7 @@ const server = http.createServer(async (req, res) => {
             fs.copyFileSync(output9x16, path.join(folderPath, 'video_9x16_pt.mp4'));
             fs.copyFileSync(output9x16, path.join(folderPath, 'video_9x16_crop_quadrado.mp4'));
             fs.copyFileSync(output9x16, path.join(folderPath, 'video_1x1_legendado.mp4'));
-          } catch (_) {}
+          } catch (_) { }
         }
 
         try {
@@ -2614,11 +2662,11 @@ const server = http.createServer(async (req, res) => {
             execSync(`ffmpeg -y -ss 00:00:05 -i "${output9x16}" -vframes 1 -q:v 2 "${path.join(folderPath, 'final_val_5s.jpg')}"`, { stdio: 'ignore' });
             execSync(`ffmpeg -y -ss 00:00:20 -i "${output9x16}" -vframes 1 -q:v 2 "${path.join(folderPath, 'final_val_20s.jpg')}"`, { stdio: 'ignore' });
           }
-        } catch (_) {}
+        } catch (_) { }
 
         try {
           await generatePostCopyForProject(project, lang);
-        } catch (_) {}
+        } catch (_) { }
 
         return sendJson(res, 200, {
           success: true,
