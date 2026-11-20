@@ -762,7 +762,7 @@ async function checkSystemStatus() {
     // MiniMax TTS / Voice Studio
     if (data.minimax && data.minimax.online) {
       badgeVoiceStudio.className = 'status-pill online';
-      badgeVoiceStudio.querySelector('.status-text').textContent = 'MiniMax TTS: Ativo';
+      badgeVoiceStudio.querySelector('.status-text').textContent = 'WStudios TTS: Ativo';
     } else if (data.voiceStudio && data.voiceStudio.online) {
       badgeVoiceStudio.className = 'status-pill online';
       badgeVoiceStudio.querySelector('.status-text').textContent = 'Voice Studio: Online (GPU)';
@@ -4608,7 +4608,7 @@ function initManualStudio() {
     const lang = langSelect?.value || 'pt';
 
     btnVoice.disabled = true;
-    showToast('Gerando narração neural (MiniMax TTS)...', 'info');
+    showToast('Gerando narração neural (WStudios V4)...', 'info');
 
     try {
       const res = await fetch('/api/manual/generate-narration', {
@@ -4873,7 +4873,7 @@ function initManualStudio() {
 
     if (progressWrap) progressWrap.style.display = 'block';
     if (progressBar) progressBar.style.width = '15%';
-    if (progressText) progressText.textContent = 'Etapa 2/5: Sintetizando narração neural via MiniMax...';
+    if (progressText) progressText.textContent = 'Etapa 2/5: Sintetizando narração neural via WStudios...';
     showToast('Iniciando pipeline 1-clique do Estúdio Manual...', 'info');
 
     try {

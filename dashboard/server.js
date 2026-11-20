@@ -1581,7 +1581,8 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 400, { error: 'Nenhum texto para síntese de áudio' });
       }
 
-      const minimaxVoice = voice || resolveVoiceId(lang, process.env.MINIMAX_VOICE_ID || 'moss_audio_3698a500-e112-11f1-92f1-163db804a819');
+      // Voz WStudios do idioma (.env). Ignora IDs antigos da MiniMax vindos da UI.
+      const minimaxVoice = resolveVoiceId(lang, voice);
       const minimaxScript = path.join(ROOT_DIR, 'scripts', 'synthesize_minimax.js');
       const tempTxt = path.join(folderPath, `temp_input_${lang}.txt`);
       const audioPath = path.join(folderPath, audioFileName);
