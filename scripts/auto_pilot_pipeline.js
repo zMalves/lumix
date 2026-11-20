@@ -352,7 +352,7 @@ async function runAutoPilot(inputTarget, options = {}) {
     }
     log('TRADUÇÃO', `Roteiro em ${lang.toUpperCase()}: "${translatedScript.slice(0, 80)}..."`);
 
-    // ETAPA 5: SÍNTESE DE VOZ NEURAL (WStudios V4, fallback OpenAI TTS)
+    // ETAPA 5: SÍNTESE DE VOZ NEURAL (somente WStudios V4: se falhar, o pipeline para)
     const shouldTts = startStepNum <= 4 || !fs.existsSync(rawAudio);
     if (shouldTts) {
       const minimaxVoice = resolveVoiceId(lang, process.env.MINIMAX_VOICE_ID || 'moss_audio_3698a500-e112-11f1-92f1-163db804a819');

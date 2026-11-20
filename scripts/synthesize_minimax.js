@@ -1,7 +1,10 @@
 /**
  * synthesize_minimax.js (nome mantido por compatibilidade com o pipeline)
  * Síntese de voz via WStudios API v1, motor Ultra V4 (ElevenLabs eleven_v4).
- * Fallback automático: OpenAI TTS (tts-1-hd) se o WStudios falhar.
+ *
+ * Usa SOMENTE o WStudios. Não existe mais fallback para OpenAI TTS: a voz "onyx" da OpenAI
+ * não é a voz do canal e soava robótica. Se o WStudios falhar mesmo depois das novas
+ * tentativas, o script termina com erro e o pipeline para (melhor que publicar com voz errada).
  *
  * Fluxo WStudios: POST /api/v1/tts (com Idempotency-Key) -> GET /api/v1/audio/{id} até pronto -> MP3.
  * A cobrança é de 3 créditos por caractere (com 25% OFF no beta).
@@ -20,14 +23,18 @@ if (typeof process.loadEnvFile === 'function') {
 
 // Chaves vêm somente do .env. Nunca coloque valores literais aqui.
 const WSTUDIOS_API_KEY = process.env.WSTUDIOS_API_KEY || '';
-const WSTUDIOS_BASE = 'https://wstudios.app/api/v1';
+const WSTUDIOS_BASE = process.env.WSTUDIOS_BASE_URL || 'https://wstudios.app/api/v1';
 const WSTUDIOS_MODEL_ID = 'eleven_v4';
 const WSTUDIOS_PROVIDER = 'ultra-v4';
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 const DEFAULT_VOICE_ID = process.env.WSTUDIOS_VOICE_ID_PT || '';
 
 const POLL_INTERVAL_MS = 3000;
-const POLL_MAX_ATTEMPTS = 200; // ~10 min
+// Tempo máximo esperando um áudio ficar pronto (o WStudios chegou a levar 11 min com fila cheia)
+const MAX_WAIT_MS = (parseFloat(process.env.WSTUDIOS_MAX_WAIT_MIN) || 20) * 60 * 1000;
+// Erros temporários seguidos (5xx, rede) tolerados enquanto espera, antes de considerar a tarefa perdida
+const MAX_TRANSIENT_ERRORS = 20;
+// Tarefas completas tentadas por trecho quando o WStudios recusa ou falha a geração
+const MAX_TASK_ATTEMPTS = 3;
 const MAX_CHARS_PER_REQUEST = 45000; // limite oficial 50.000
 
 function isValidVoiceId(id) {
@@ -38,92 +45,88 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function callOpenAITTS(text, voice = 'onyx', speed = 1.05) {
-  if (!OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY não configurada no .env');
-  }
-  console.log(`[OpenAI TTS] Chamando síntese OpenAI (Voz: ${voice}, Velocidade: ${speed}, Chars: ${text.length})...`);
-  const res = await fetch('https://api.openai.com/v1/audio/speech', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${OPENAI_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: 'tts-1-hd',
-      input: text,
-      voice: voice || 'onyx',
-      speed: Math.max(0.25, Math.min(4.0, parseFloat(speed) || 1.05)),
-      response_format: 'mp3'
-    })
-  });
+const isTransientStatus = (status) => status === 429 || status >= 500;
 
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`OpenAI TTS HTTP ${res.status}: ${errText}`);
+/**
+ * Cria a tarefa de voz. Erros de rede e 5xx são repetidos com a MESMA Idempotency-Key,
+ * então o WStudios não cria (nem cobra) duas tarefas para o mesmo pedido.
+ */
+async function createWStudiosTask(body, headers, idempotencyKey) {
+  let lastErr = null;
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      const res = await fetch(`${WSTUDIOS_BASE}/tts`, {
+        method: 'POST',
+        headers: { ...headers, 'Idempotency-Key': idempotencyKey },
+        body: JSON.stringify(body)
+      });
+      const text = await res.text();
+      if (res.ok) {
+        const task = JSON.parse(text);
+        if (!task.id) throw new Error(`WStudios sem id da tarefa: ${text.slice(0, 200)}`);
+        return task.id;
+      }
+      const err = new Error(`WStudios HTTP ${res.status} ao criar tarefa: ${text.slice(0, 300)}`);
+      if (!isTransientStatus(res.status)) {
+        err.permanent = true; // 4xx: chave, voz ou texto inválidos; repetir não resolve
+        throw err;
+      }
+      lastErr = err;
+      const retryAfter = parseFloat(res.headers.get('retry-after'));
+      await sleep((retryAfter > 0 ? retryAfter : 5 * attempt) * 1000);
+    } catch (err) {
+      if (err.permanent) throw err;
+      lastErr = err;
+      await sleep(5000 * attempt);
+    }
   }
-
-  const arrayBuf = await res.arrayBuffer();
-  return Buffer.from(arrayBuf);
+  throw lastErr;
 }
 
 /**
- * Gera um trecho com WStudios V4. Não reenvia automaticamente um pedido de aceite ambíguo (409 AMBIGUOUS_SUBMIT).
+ * Espera o áudio da tarefa ficar pronto. 202 = pendente. Erros 5xx/rede no meio da espera
+ * (ex.: 502 do nginx deles) não derrubam a tarefa: a consulta continua.
  */
-async function callWStudiosV4(text, voiceId, speed = 1.05) {
-  if (!WSTUDIOS_API_KEY) {
-    throw new Error('WSTUDIOS_API_KEY não configurada no .env');
-  }
-  if (!isValidVoiceId(voiceId)) {
-    throw new Error(`voice_id WStudios inválido (precisa de 20 caracteres alfanuméricos): "${voiceId}"`);
-  }
+async function waitWStudiosAudio(taskId, headers) {
+  const startedAt = Date.now();
+  let transientErrors = 0;
+  let lastErr = '';
 
-  const idempotencyKey = crypto.randomUUID();
-  const headers = {
-    'Authorization': `Bearer ${WSTUDIOS_API_KEY}`,
-    'Content-Type': 'application/json'
-  };
-
-  console.log(`[WStudios] Enviando V4 (Voz: ${voiceId}, Velocidade: ${speed}, Chars: ${text.length})...`);
-  const createRes = await fetch(`${WSTUDIOS_BASE}/tts`, {
-    method: 'POST',
-    headers: { ...headers, 'Idempotency-Key': idempotencyKey },
-    body: JSON.stringify({
-      text,
-      voice_id: voiceId,
-      provider: WSTUDIOS_PROVIDER,
-      model_id: WSTUDIOS_MODEL_ID,
-      speed: Math.max(0.5, Math.min(2, parseFloat(speed) || 1.0))
-    })
-  });
-
-  const createBody = await createRes.text();
-  if (!createRes.ok) {
-    throw new Error(`WStudios HTTP ${createRes.status}: ${createBody.slice(0, 300)}`);
-  }
-  const task = JSON.parse(createBody);
-  if (!task.id) {
-    throw new Error(`WStudios sem id da tarefa: ${createBody.slice(0, 200)}`);
-  }
-
-  // Aguarda o áudio ficar pronto (GET /audio/{id}: 202 = ainda pendente)
-  for (let attempt = 1; attempt <= POLL_MAX_ATTEMPTS; attempt++) {
+  while (Date.now() - startedAt < MAX_WAIT_MS) {
     await sleep(POLL_INTERVAL_MS);
-    const res = await fetch(`${WSTUDIOS_BASE}/audio/${encodeURIComponent(task.id)}`, { headers });
+    let res;
+    try {
+      res = await fetch(`${WSTUDIOS_BASE}/audio/${encodeURIComponent(taskId)}`, { headers });
+    } catch (err) {
+      res = null;
+      lastErr = err.message;
+    }
 
-    if (res.status === 202) continue;
-    if (res.status === 429) {
-      const retryAfter = parseFloat(res.headers.get('retry-after')) || 10;
-      await sleep(retryAfter * 1000);
+    if (res && res.status === 202) { transientErrors = 0; continue; }
+
+    if (!res || isTransientStatus(res.status)) {
+      if (res) {
+        lastErr = `HTTP ${res.status}`;
+        const retryAfter = parseFloat(res.headers.get('retry-after'));
+        if (res.status === 429) { await sleep((retryAfter > 0 ? retryAfter : 10) * 1000); continue; }
+        await res.text().catch(() => '');
+      }
+      transientErrors++;
+      if (transientErrors >= MAX_TRANSIENT_ERRORS) {
+        throw new Error(`WStudios: ${transientErrors} erros seguidos consultando a tarefa ${taskId} (último: ${lastErr})`);
+      }
+      console.warn(`[WStudios] Instabilidade consultando ${taskId} (${lastErr}). Tentando de novo...`);
+      await sleep(Math.min(30000, 3000 * transientErrors));
       continue;
+    }
+    transientErrors = 0;
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`WStudios falhou ao baixar áudio ${taskId} (HTTP ${res.status}): ${errText.slice(0, 300)}`);
     }
 
     const contentType = res.headers.get('content-type') || '';
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`WStudios falhou ao baixar áudio ${task.id} (HTTP ${res.status}): ${errText.slice(0, 300)}`);
-    }
-
     if (contentType.includes('audio/')) {
       return Buffer.from(await res.arrayBuffer());
     }
@@ -143,7 +146,54 @@ async function callWStudiosV4(text, voiceId, speed = 1.05) {
     }
   }
 
-  throw new Error(`WStudios: tempo esgotado aguardando a tarefa ${task.id}`);
+  const err = new Error(`WStudios: a tarefa ${taskId} não ficou pronta em ${Math.round(MAX_WAIT_MS / 60000)} min`);
+  err.timeout = true;
+  throw err;
+}
+
+/**
+ * Gera um trecho com WStudios V4.
+ * - Falha da geração (status "failed" ou tarefa perdida): cria uma nova tarefa, até MAX_TASK_ATTEMPTS.
+ * - Tempo esgotado com a tarefa ainda pendente: NÃO cria outra (poderia cobrar duas vezes); termina com erro.
+ * - Erro 4xx ao criar (chave/voz/texto inválidos): termina na hora.
+ */
+async function callWStudiosV4(text, voiceId, speed = 1.05) {
+  if (!WSTUDIOS_API_KEY) {
+    throw new Error('WSTUDIOS_API_KEY não configurada no .env');
+  }
+  if (!isValidVoiceId(voiceId)) {
+    throw new Error(`voice_id WStudios inválido (precisa de 20 caracteres alfanuméricos): "${voiceId}"`);
+  }
+
+  const headers = {
+    'Authorization': `Bearer ${WSTUDIOS_API_KEY}`,
+    'Content-Type': 'application/json'
+  };
+  const body = {
+    text,
+    voice_id: voiceId,
+    provider: WSTUDIOS_PROVIDER,
+    model_id: WSTUDIOS_MODEL_ID,
+    speed: Math.max(0.5, Math.min(2, parseFloat(speed) || 1.0))
+  };
+
+  let lastErr = null;
+  for (let attempt = 1; attempt <= MAX_TASK_ATTEMPTS; attempt++) {
+    console.log(`[WStudios] Enviando V4 (Voz: ${voiceId}, Velocidade: ${body.speed}, Chars: ${text.length}, tentativa ${attempt}/${MAX_TASK_ATTEMPTS})...`);
+    try {
+      const taskId = await createWStudiosTask(body, headers, crypto.randomUUID());
+      return await waitWStudiosAudio(taskId, headers);
+    } catch (err) {
+      if (err.permanent || err.timeout) throw err;
+      lastErr = err;
+      if (attempt < MAX_TASK_ATTEMPTS) {
+        const waitSec = 30 * attempt;
+        console.warn(`[WStudios] ${err.message}. Nova tentativa em ${waitSec}s...`);
+        await sleep(waitSec * 1000);
+      }
+    }
+  }
+  throw lastErr;
 }
 
 /**
@@ -180,45 +230,22 @@ async function synthesizeText(inputTextOrPath, outputPath, voiceId = DEFAULT_VOI
     throw new Error('Texto para síntese está vazio!');
   }
 
-  // 1. Síntese primária: WStudios Ultra V4
-  try {
-    const chunks = splitTextIntoSentences(text, MAX_CHARS_PER_REQUEST);
-    const audioBuffers = [];
+  // Somente WStudios Ultra V4 (sem fallback de outra voz)
+  const chunks = splitTextIntoSentences(text, MAX_CHARS_PER_REQUEST);
+  const audioBuffers = [];
 
-    for (let i = 0; i < chunks.length; i++) {
-      console.log(`[WStudios] Processando bloco ${i + 1}/${chunks.length} (${chunks[i].length} chars)...`);
-      audioBuffers.push(await callWStudiosV4(chunks[i], voiceId, speed));
-    }
-
-    const combined = Buffer.concat(audioBuffers);
-    fs.writeFileSync(outputPath, combined);
-    console.log(`[WStudios] Sucesso! Áudio salvo em: ${outputPath} (${combined.length} bytes)`);
-    return outputPath;
-  } catch (wstudiosErr) {
-    console.warn(`[Aviso WStudios] ${wstudiosErr.message}`);
-
-    // 2. Fallback automático para OpenAI TTS (HD)
-    if (OPENAI_API_KEY) {
-      console.log(`[TTS Fallback] Acionando OpenAI TTS (Modelo tts-1-hd, Voz onyx)...`);
-      try {
-        const chunks = splitTextIntoSentences(text, 4000);
-        const audioBuffers = [];
-
-        for (let i = 0; i < chunks.length; i++) {
-          audioBuffers.push(await callOpenAITTS(chunks[i], 'onyx', speed));
-        }
-
-        const combined = Buffer.concat(audioBuffers);
-        fs.writeFileSync(outputPath, combined);
-        console.log(`[OpenAI TTS] Sucesso! Áudio salvo em: ${outputPath} (${combined.length} bytes) [Fallback ativo]`);
-        return outputPath;
-      } catch (openaiErr) {
-        throw new Error(`Falha em ambos os provedores TTS. WStudios: ${wstudiosErr.message} | OpenAI: ${openaiErr.message}`);
-      }
-    }
-
-    throw wstudiosErr;
+  for (let i = 0; i < chunks.length; i++) {
+    console.log(`[WStudios] Processando bloco ${i + 1}/${chunks.length} (${chunks[i].length} chars)...`);
+    audioBuffers.push(await callWStudiosV4(chunks[i], voiceId, speed));
   }
+
+  // Grava num temporário e só então substitui: uma falha nunca deixa um MP3 pela metade no lugar
+  const combined = Buffer.concat(audioBuffers);
+  const tempPath = `${outputPath}.tmp`;
+  fs.writeFileSync(tempPath, combined);
+  fs.renameSync(tempPath, outputPath);
+  console.log(`[WStudios] Sucesso! Áudio salvo em: ${outputPath} (${combined.length} bytes)`);
+  return outputPath;
 }
 
 if (require.main === module) {

@@ -18,7 +18,7 @@ Fila de produção (até 4 vídeos em paralelo) → auto_pilot_pipeline.js
   6. Para cada idioma (pt, es, en):
        tradução/adaptação (gpt-4o-mini)        → roteiro_traduzido[_xx].txt
        normalização fonética
-       voz (WStudios V4, fallback OpenAI TTS)  → narracao[_xx].mp3
+       voz (somente WStudios V4)               → narracao[_xx].mp3
        corte de silêncios                       → narracao_trimmed[_xx].mp3
        mesclagem voz + vídeo + trilha           → final[_xx].mp4
        legendas palavra por palavra             → legendas[_xx].ass
@@ -85,7 +85,8 @@ Limitação: a tabela de números é fixa; valores fora dela viram `N dólares`,
 
 ### Síntese (`scripts/synthesize_minimax.js`, nome mantido por compatibilidade)
 - **Primário:** WStudios API, motor Ultra V4 (`eleven_v4`), voz por idioma em `WSTUDIOS_VOICE_ID_*`.
-- **Fallback automático:** OpenAI `tts-1-hd`, voz `onyx`.
+- **Sem fallback de outra voz:** a voz `onyx` da OpenAI foi removida porque não é a voz do canal e soava robótica. Se o WStudios falhar, a etapa termina com erro e o vídeo para na fila, para ser recolocado a partir da narração.
+- **Novas tentativas:** erros temporários (502, rede, 429) durante a espera não derrubam a tarefa; a consulta continua. Se a geração falhar no WStudios, uma nova tarefa é criada (até 3 por trecho, com 30s e 60s de intervalo). Se a tarefa continuar pendente após `WSTUDIOS_MAX_WAIT_MIN` minutos (padrão 20), a etapa termina com erro sem criar outra tarefa, para não cobrar duas vezes.
 - **Velocidade nativa do modelo:** 1.3 no piloto automático, 1.05 no Estúdio Manual. A aceleração é feita no próprio TTS, não com `atempo`, para não deixar a voz metálica.
 - Textos acima de 45.000 caracteres são divididos em blocos por frase.
 

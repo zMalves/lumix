@@ -535,8 +535,11 @@ class VMakeApiClient {
     let pollResult;
     try {
       pollResult = await this.pollTask(taskId, ({ status, progress }) => {
-        const calcPct = Math.min(92, 55 + Math.round((progress || 0) * 0.37));
-        notify(`Processando IA (${progress || 0}%)...`, calcPct);
+        // A API devolve o progresso como fração (0.39 = 39%, 1 = concluído)
+        const raw = Number(progress) || 0;
+        const aiPct = Math.round(raw <= 1 ? raw * 100 : raw);
+        const calcPct = Math.min(92, 55 + Math.round(aiPct * 0.37));
+        notify(`Processando IA (${aiPct}%)...`, calcPct);
       });
     } catch (err) {
       // Falha definitiva no servidor: a tarefa não tem como ser retomada

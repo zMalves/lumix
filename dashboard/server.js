@@ -1578,7 +1578,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ----------------------------------------------------
-    // API: Gerar Áudio com Voz WStudios V4 (fallback OpenAI TTS) (Multi-Idioma)
+    // API: Gerar Áudio com Voz WStudios V4 (Multi-Idioma, sem fallback de outra voz)
     // ----------------------------------------------------
     if (pathname === '/api/generate-audio' && req.method === 'POST') {
       const { project, text, voice, speed = 1.3, trimSilence = true, minSilence = 350, keepSilence = 200, lang = 'pt' } = await parseBody(req);
@@ -1614,7 +1614,7 @@ const server = http.createServer(async (req, res) => {
         }
       } catch (genErr) {
         if (fs.existsSync(tempTxt)) fs.unlinkSync(tempTxt);
-        return sendJson(res, 500, { error: 'Falha na geração de voz (WStudios/OpenAI TTS)', detail: genErr.message });
+        return sendJson(res, 500, { error: 'Falha na geração de voz (WStudios)', detail: genErr.message });
       }
 
       if (!fs.existsSync(audioPath)) {
@@ -2086,7 +2086,7 @@ const server = http.createServer(async (req, res) => {
         }
       } catch (genErr) {
         if (fs.existsSync(tempTxt)) fs.unlinkSync(tempTxt);
-        return sendJson(res, 500, { error: 'Falha na geração de voz (WStudios/OpenAI TTS)', detail: genErr.message });
+        return sendJson(res, 500, { error: 'Falha na geração de voz (WStudios)', detail: genErr.message });
       }
 
       if (!fs.existsSync(audioPath)) {

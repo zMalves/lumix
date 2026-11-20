@@ -1857,6 +1857,8 @@ async function handleRunTranslate() {
   const transcript = textTranscript.value.trim();
   if (!transcript) return showToast('Transcreva o vídeo primeiro ou digite um texto.');
 
+  // Guarda o conteúdo do botão (ícone + "Adaptar para <idioma>") para restaurar depois
+  const originalBtnHtml = btnRunTranslate.innerHTML;
   btnRunTranslate.disabled = true;
   btnRunTranslate.textContent = '⏳ Traduzindo com ChatGPT...';
 
@@ -1869,7 +1871,7 @@ async function handleRunTranslate() {
 
     const data = await res.json();
     btnRunTranslate.disabled = false;
-    btnRunTranslate.textContent = '🌐 Traduzir com ChatGPT';
+    btnRunTranslate.innerHTML = originalBtnHtml;
 
     if (!res.ok) throw new Error(data.detail || data.error || 'Falha na tradução');
 
@@ -1878,7 +1880,7 @@ async function handleRunTranslate() {
     loadProjects(currentProject.name);
   } catch (err) {
     btnRunTranslate.disabled = false;
-    btnRunTranslate.textContent = '🌐 Traduzir com ChatGPT';
+    btnRunTranslate.innerHTML = originalBtnHtml;
     showToast(`Erro: ${err.message}`);
   }
 }
@@ -2601,8 +2603,8 @@ function renderQueueUI(data) {
       }
     }
 
-    // Mini badges de etapas
-    highlightMiniStep(data.active.progress || 0);
+    // Mini badges de etapas: usam o % da etapa (o progresso geral divide as etapas entre os idiomas)
+    highlightMiniStep(data.active.stagePct || data.active.progress || 0);
 
     if (activeLogs && Array.isArray(data.active.logs)) {
       activeLogs.textContent = data.active.logs.join('');
@@ -4121,10 +4123,12 @@ function updateLanguageStudioContent(lang) {
   const langData = (currentProject.languages && currentProject.languages[lang]) || {};
   const meta = LANG_METADATA[lang] || { label: lang.toUpperCase(), flag: '🌐' };
 
-  const titleStep4 = document.querySelector('#step-badge-4');
-  if (titleStep4) titleStep4.innerHTML = `<span class="step-num">4</span> Storytelling (${meta.label})`;
-  const btnTr = document.getElementById('btn-translate');
-  if (btnTr) btnTr.textContent = `Adaptar para ${meta.label}`;
+  // Título, botão e dica da Etapa 4 seguem o idioma da aba (antes ficavam sempre "PT-BR")
+  const titleStep4 = document.getElementById('title-step-4');
+  if (titleStep4) titleStep4.textContent = `Storytelling Viral & Fonética (${meta.label})`;
+  const btnTrLabel = document.getElementById('btn-run-translate-label');
+  if (btnTrLabel) btnTrLabel.textContent = `Adaptar para ${meta.label}`;
+  if (textTranslation) textTranslation.placeholder = `O roteiro adaptado em ${meta.label} com números e valores por extenso aparecerá aqui...`;
 
   const trText = langData.translation || (lang === 'pt' ? currentProject.translation : '');
   if (textTranslation) textTranslation.value = trText || '';

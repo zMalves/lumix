@@ -6,7 +6,21 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
+
+// Encerra o pipeline e todos os processos filhos dele (ffmpeg, Python, síntese de voz)
+function killProcessTree(child) {
+  if (!child || !child.pid) return;
+  try {
+    if (process.platform === 'win32') {
+      spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+    } else {
+      process.kill(-child.pid, 'SIGKILL'); // PID negativo = grupo inteiro (spawn com detached)
+    }
+  } catch (e) {
+    try { child.kill('SIGKILL'); } catch (_) {}
+  }
+}
 
 class ProductionQueue {
   constructor(rootDir, videosDir, maxConcurrent = 4) {
@@ -168,9 +182,7 @@ class ProductionQueue {
     }
 
     if (child) {
-      try {
-        child.kill('SIGKILL');
-      } catch (e) {}
+      killProcessTree(child);
       this.activeProcesses.delete(id);
     }
 
@@ -225,6 +237,7 @@ class ProductionQueue {
     item.startedAt = new Date().toISOString();
     item.currentStep = 'Inicializando pipeline...';
     item.progress = 5;
+    item.stagePct = 5;
     this.saveState();
 
     console.log(`\n[Queue Manager] 🚀 [Slot ${this.activeProcesses.size + 1}/${this.maxConcurrent}] Iniciando: "${item.title}" (${item.target})`);
@@ -242,90 +255,24 @@ class ProductionQueue {
     }
     const child = spawn(process.execPath, spawnArgs, {
       cwd: this.rootDir,
-      env: { ...process.env, LUMIX_WORKER: '1' }
+      env: { ...process.env, LUMIX_WORKER: '1' },
+      // Grupo de processos próprio (Linux/Docker): permite cancelar o pipeline junto com
+      // os ffmpeg/Whisper que ele abriu, em vez de deixá-los órfãos consumindo CPU
+      detached: process.platform !== 'win32'
     });
 
     this.activeProcesses.set(item.id, child);
 
-    const parseStage = (text) => {
-      const langMatch = text.match(/para o idioma:\s*\[([A-Z]{2,5})\]/i);
-      if (langMatch && langMatch[1]) {
-        item.activeLang = langMatch[1].toUpperCase();
-      }
-      const langPrefix = item.activeLang ? `[${item.activeLang}] ` : '';
-
-      if (text.includes('[INÍCIO]')) {
-        item.currentStep = 'Iniciando Pipeline LUMIX';
-        item.progress = 8;
-        if (!item.target.startsWith('http://') && !item.target.startsWith('https://')) {
-          item.projectFolder = item.target.trim();
-        }
-      } else if (text.includes('[DOWNLOAD]')) {
-        item.currentStep = 'Baixando vídeo original em HD';
-        item.progress = 18;
-        const folderMatch = text.match(/Identificado projeto na pasta:\s*([^\r\n]+)/);
-        if (folderMatch && folderMatch[1]) {
-          item.projectFolder = folderMatch[1].trim();
-        }
-      } else if (text.includes('[VMAKE]')) {
-        item.currentStep = 'Limpeza IA (VMake API 4x Slots)';
-        item.progress = 35;
-      } else if (text.includes('[VALIDAÇÃO_1]')) {
-        item.currentStep = 'Auditoria Visual dos Frames';
-        item.progress = 45;
-      } else if (text.includes('[TRANSCRIÇÃO]')) {
-        item.currentStep = 'Transcrição OpenAI Whisper API';
-        item.progress = 55;
-      } else if (text.includes('[CORTES]')) {
-        item.currentStep = 'Cálculo de Cortes Rítmicos da Timeline';
-        item.progress = 60;
-      } else if (text.includes('[TRADUÇÃO]')) {
-        item.currentStep = `${langPrefix}Storytelling Viral & Roteiro`;
-        item.progress = 68;
-      } else if (text.includes('[VOZ]')) {
-        item.currentStep = `${langPrefix}Síntese de Voz WStudios V4`;
-        item.progress = 78;
-      } else if (text.includes('[ÁUDIO]')) {
-        item.currentStep = `${langPrefix}Higienização e Corte de Silêncios`;
-        item.progress = 84;
-      } else if (text.includes('[SINCRONIA]')) {
-        item.currentStep = `${langPrefix}Mesclagem e Sincronização Áudio-Vídeo`;
-        item.progress = 90;
-      } else if (text.includes('[LEGENDAS]')) {
-        item.currentStep = `${langPrefix}Geração de Legendas Dinâmicas`;
-        item.progress = 94;
-      } else if (text.includes('[RENDER]')) {
-        item.currentStep = `${langPrefix}Renderização Master 9:16 Vertical`;
-        item.progress = 97;
-      } else if (text.includes('[COPYS]')) {
-        item.currentStep = `${langPrefix}Geração do Kit de Publicação & Títulos`;
-        item.progress = 99;
-      } else if (text.includes('[SUCESSO]')) {
-        item.currentStep = 'Concluído com Sucesso!';
-        item.progress = 100;
-        const matchFile = text.match(/Arquivo Final:\s*([^\r\n]+)/);
-        if (matchFile && matchFile[1]) {
-          const parts = matchFile[1].split(/[\\/]/);
-          const vIdx = parts.indexOf('videos');
-          if (vIdx !== -1 && parts[vIdx + 1]) {
-            item.projectFolder = parts[vIdx + 1];
-          }
-        }
-      }
-    };
-
     child.stdout.on('data', chunk => {
       const text = chunk.toString();
-      item.logs.push(text);
-      if (item.logs.length > 250) item.logs.shift();
-      parseStage(text);
+      this.appendLog(item, text);
+      this.applyStageFromLog(item, text);
     });
 
     child.stderr.on('data', chunk => {
       const text = chunk.toString();
-      item.logs.push('[ERR] ' + text);
-      if (item.logs.length > 250) item.logs.shift();
-      parseStage(text);
+      this.appendLog(item, '[ERR] ' + text);
+      this.applyStageFromLog(item, text);
     });
 
     child.on('close', code => {
@@ -352,6 +299,96 @@ class ProductionQueue {
     });
   }
 
+  /**
+   * Guarda a saída do pipeline no log do item. As linhas de progresso do ffmpeg
+   * ("frame= ... time= ... speed=") substituem a anterior em vez de se acumular:
+   * antes elas enchiam o limite de 250 entradas e apagavam todo o resto do log.
+   */
+  appendLog(item, text) {
+    const isFfmpegProgress = (t) => /frame=\s*\d+.*time=/.test(t);
+    const last = item.logs[item.logs.length - 1];
+    if (isFfmpegProgress(text) && typeof last === 'string' && isFfmpegProgress(last)) {
+      item.logs[item.logs.length - 1] = text;
+      return;
+    }
+    item.logs.push(text);
+    if (item.logs.length > 250) item.logs.shift();
+  }
+
+  /**
+   * Atualiza etapa e progresso do item a partir da saída do pipeline.
+   *
+   * O progresso geral nunca volta: com vários idiomas, as etapas por idioma dividem
+   * a faixa de 60% a 99% entre eles (ex.: PT vai de 60% a ~80% e ES de ~80% a 99%).
+   * Antes cada idioma recomeçava em 68%, o que dava a impressão de que o vídeo estava em loop.
+   * `stagePct` mantém o percentual da etapa (sem considerar o idioma) para os passos do painel.
+   */
+  applyStageFromLog(item, text) {
+    const langMatch = text.match(/para o idioma:\s*\[([A-Z]{2,5})\]/i);
+    if (langMatch && langMatch[1]) {
+      item.activeLang = langMatch[1].toUpperCase();
+    }
+
+    const langs = (Array.isArray(item.languages) && item.languages.length ? item.languages : ['pt']).map(l => String(l).toLowerCase());
+    const langIdx = item.activeLang ? Math.max(0, langs.indexOf(item.activeLang.toLowerCase())) : 0;
+    const langLabel = item.activeLang
+      ? (langs.length > 1 ? `[${item.activeLang} ${langIdx + 1}/${langs.length}] ` : `[${item.activeLang}] `)
+      : '';
+
+    // [marcador, texto da etapa, % da etapa, fração dentro do idioma (null = etapa geral)]
+    const stages = [
+      ['[INÍCIO]', 'Iniciando Pipeline LUMIX', 8, null],
+      ['[DOWNLOAD]', 'Baixando vídeo original em HD', 18, null],
+      ['[VMAKE]', 'Limpeza IA (VMake API 4x Slots)', 35, null],
+      ['[VALIDAÇÃO_1]', 'Auditoria Visual dos Frames', 45, null],
+      ['[TRANSCRIÇÃO]', 'Transcrição OpenAI Whisper API', 55, null],
+      ['[CORTES]', 'Cálculo de Cortes Rítmicos da Timeline', 60, null],
+      ['[TRADUÇÃO]', 'Storytelling Viral & Roteiro', 68, 0.05],
+      ['[VOZ]', 'Síntese de Voz WStudios V4', 78, 0.25],
+      ['[ÁUDIO]', 'Higienização e Corte de Silêncios', 84, 0.45],
+      ['[SINCRONIA]', 'Mesclagem e Sincronização Áudio-Vídeo', 90, 0.55],
+      ['[LEGENDAS]', 'Geração de Legendas Dinâmicas', 94, 0.7],
+      ['[RENDER]', 'Renderização Master 9:16 Vertical', 97, 0.8],
+      ['[COPYS]', 'Geração do Kit de Publicação & Títulos', 99, 0.95]
+    ];
+
+    if (text.includes('[SUCESSO]')) {
+      item.currentStep = 'Concluído com Sucesso!';
+      item.progress = 100;
+      item.stagePct = 100;
+      const matchFile = text.match(/Arquivo Final:\s*([^\r\n]+)/);
+      if (matchFile && matchFile[1]) {
+        const parts = matchFile[1].split(/[\\/]/);
+        const vIdx = parts.indexOf('videos');
+        if (vIdx !== -1 && parts[vIdx + 1]) {
+          item.projectFolder = parts[vIdx + 1];
+        }
+      }
+      return;
+    }
+
+    const stage = stages.find(s => text.includes(s[0]));
+    if (!stage) return;
+    const [marker, label, stagePct, langFraction] = stage;
+
+    item.currentStep = langFraction === null ? label : `${langLabel}${label}`;
+    item.stagePct = stagePct;
+    const overall = langFraction === null
+      ? stagePct
+      : Math.round(60 + 39 * (langIdx + langFraction) / langs.length);
+    item.progress = Math.max(item.progress || 0, overall);
+
+    if (marker === '[INÍCIO]' && !item.target.startsWith('http://') && !item.target.startsWith('https://')) {
+      item.projectFolder = item.target.trim();
+    }
+    if (marker === '[DOWNLOAD]') {
+      const folderMatch = text.match(/Identificado projeto na pasta:\s*([^\r\n]+)/);
+      if (folderMatch && folderMatch[1]) {
+        item.projectFolder = folderMatch[1].trim();
+      }
+    }
+  }
+
   getStatus() {
     const activeList = this.items.filter(i => i.status === 'processing');
     const pending = this.items.filter(i => i.status === 'pending');
@@ -373,4 +410,4 @@ class ProductionQueue {
   }
 }
 
-module.exports = { ProductionQueue };
+module.exports = { ProductionQueue, killProcessTree };
