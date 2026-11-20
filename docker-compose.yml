@@ -3,6 +3,9 @@ services:
     build: .
     container_name: lumix-studio
     restart: unless-stopped
+    # Usa um init (tini) como PID 1 para recolher processos filhos encerrados (ffmpeg, Whisper)
+    # que ficariam como zumbis com o Node como processo principal
+    init: true
     ports:
       - "3334:3333"
     environment:
