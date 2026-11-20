@@ -2825,6 +2825,16 @@ async function loadSettingsForm() {
     const elVmakeTask = document.getElementById('setting-vmake-task');
     if (elVmakeTask) elVmakeTask.value = data.vmakeTask || 'SKM0002';
 
+    // As chaves chegam mascaradas (••••••••1234). Ao focar o campo, seleciona tudo
+    // para que digitar uma chave nova substitua a máscara em vez de se misturar a ela.
+    ['setting-openai-key', 'setting-minimax-key', 'setting-vmake-ak', 'setting-vmake-sk'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el && !el.dataset.maskHandler) {
+        el.dataset.maskHandler = '1';
+        el.addEventListener('focus', () => { if (el.value.includes('•')) el.select(); });
+      }
+    });
+
     const oaiStatus = document.getElementById('setting-openai-status');
     if (oaiStatus) {
       oaiStatus.textContent = data.hasOpenai ? '✅ Conectado' : '⚠️ Não configurado';

@@ -156,6 +156,18 @@ async function runAutoPilot(inputTarget, options = {}) {
   // ----------------------------------------------------
   // ETAPA 2: VMAKE - REMOÇÃO DE MARCA D'ÁGUA E LEGENDAS (API OFICIAL)
   // ----------------------------------------------------
+  // Um sem_marca.mp4 ilegível ou truncado (ex.: de uma versão antiga sem validação) é posto de lado
+  // (renomeado para sem_marca_invalido.mp4, não apagado) e a limpeza é refeita
+  if (fs.existsSync(cleanVid) && startStepNum <= 1) {
+    try {
+      const { validateCleanVideo } = require('./vmake_api_client.js');
+      validateCleanVideo(cleanVid, originalVid);
+    } catch (valErr) {
+      log('VMAKE', `⚠️ sem_marca.mp4 existente é inválido (${valErr.message}). Guardado como sem_marca_invalido.mp4; refazendo a limpeza...`);
+      fs.renameSync(cleanVid, path.join(projectDir, 'sem_marca_invalido.mp4'));
+    }
+  }
+
   const shouldRunVmake = (startStepNum <= 1 && !fs.existsSync(cleanVid)) || (startStepNum === 1 && options.forceClean);
   if (shouldRunVmake) {
     log('VMAKE', `Executando remoção de marca d'água e legendas embutidas via VMake API Oficial...`);
@@ -276,6 +288,7 @@ async function runAutoPilot(inputTarget, options = {}) {
     if (shouldTranslate) {
       log('TRADUÇÃO', `Adaptando roteiro com storytelling viral em ${langName}...`);
       let translatedText = '';
+      let translateError = process.env.OPENAI_API_KEY ? '' : 'OPENAI_API_KEY não configurada no .env';
 
       if (process.env.OPENAI_API_KEY) {
         try {
@@ -302,15 +315,23 @@ async function runAutoPilot(inputTarget, options = {}) {
           });
           if (oaiRes.ok) {
             const oaiData = await oaiRes.json();
-            translatedText = oaiData.choices[0].message.content.trim();
+            translatedText = (oaiData.choices?.[0]?.message?.content || '').trim();
+            if (!translatedText) translateError = 'OpenAI devolveu roteiro vazio';
+          } else {
+            translateError = `OpenAI HTTP ${oaiRes.status}: ${(await oaiRes.text()).slice(0, 300)}`;
           }
         } catch (e) {
-          log('TRADUÇÃO', `Aviso OpenAI: ${e.message}`);
+          translateError = e.message;
         }
       }
 
       if (!translatedText) {
-        log('TRADUÇÃO', `Aplicando adaptação direta para ${lang.toUpperCase()}...`);
+        // A transcrição original é em inglês: só serve como roteiro da versão EN.
+        // Para PT/ES, seguir com ela faria a voz narrar em inglês sem ninguém perceber.
+        if (lang !== 'en' || !originalTranscript) {
+          throw new Error(`Tradução para ${lang.toUpperCase()} falhou (${translateError}). Pipeline interrompido para não narrar o texto original em inglês.`);
+        }
+        log('TRADUÇÃO', `⚠️ Adaptação EN falhou (${translateError}). Usando a transcrição original em inglês.`);
         translatedText = originalTranscript;
       }
 
@@ -331,11 +352,11 @@ async function runAutoPilot(inputTarget, options = {}) {
     }
     log('TRADUÇÃO', `Roteiro em ${lang.toUpperCase()}: "${translatedScript.slice(0, 80)}..."`);
 
-    // ETAPA 5: SÍNTESE DE VOZ NEURAL (MiniMax TTS)
+    // ETAPA 5: SÍNTESE DE VOZ NEURAL (WStudios V4, fallback OpenAI TTS)
     const shouldTts = startStepNum <= 4 || !fs.existsSync(rawAudio);
     if (shouldTts) {
       const minimaxVoice = resolveVoiceId(lang, process.env.MINIMAX_VOICE_ID || 'moss_audio_3698a500-e112-11f1-92f1-163db804a819');
-      log('VOZ', `Sintetizando locução ultra-realista via MiniMax API a 1.3x (${lang.toUpperCase()}, Voz: ${minimaxVoice})...`);
+      log('VOZ', `Sintetizando locução via WStudios V4 a 1.3x (${lang.toUpperCase()}, Voz: ${minimaxVoice})...`);
       const minimaxScript = path.join(ROOT_DIR, 'scripts', 'synthesize_minimax.js');
       execSync(`"${process.execPath}" "${minimaxScript}" "${translatedFile}" "${rawAudio}" "${minimaxVoice}" 1.3`, { stdio: 'inherit' });
       if (lang === 'pt') {

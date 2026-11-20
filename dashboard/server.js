@@ -44,6 +44,20 @@ function sendJson(res, statusCode, data) {
   res.end(JSON.stringify(data));
 }
 
+const SECRET_MASK_CHAR = '•';
+
+// Mostra só os 4 últimos caracteres de uma chave (ex.: "••••••••a1b2")
+function maskSecret(value) {
+  const v = String(value || '');
+  if (!v) return '';
+  return SECRET_MASK_CHAR.repeat(8) + (v.length > 8 ? v.slice(-4) : '');
+}
+
+// Valor vindo do painel que ainda contém a máscara = usuário não alterou a chave
+function isMaskedSecret(value) {
+  return typeof value === 'string' && value.includes(SECRET_MASK_CHAR);
+}
+
 function parseBody(req) {
   return new Promise((resolve, reject) => {
     let body = '';
@@ -1123,18 +1137,20 @@ const server = http.createServer(async (req, res) => {
     // ----------------------------------------------------
     // API: Configurações & Chaves de API (OpenAI, MiniMax, VoiceStudio, VMake API)
     // ----------------------------------------------------
+    // As chaves nunca saem do servidor: o painel recebe só uma máscara com os 4 últimos caracteres.
+    // Ao salvar, um valor que ainda contém a máscara significa "não alterado".
     if (pathname === '/api/settings' && req.method === 'GET') {
       return sendJson(res, 200, {
-        openaiKey: process.env.OPENAI_API_KEY || '',
+        openaiKey: maskSecret(process.env.OPENAI_API_KEY),
         hasOpenai: !!process.env.OPENAI_API_KEY,
-        minimaxKey: process.env.MINIMAX_API_KEY || '',
+        minimaxKey: maskSecret(process.env.MINIMAX_API_KEY),
         hasMinimax: !!process.env.MINIMAX_API_KEY,
         minimaxVoiceId: process.env.MINIMAX_VOICE_ID || 'moss_audio_3698a500-e112-11f1-92f1-163db804a819',
         minimaxVoiceIdEs: process.env.MINIMAX_VOICE_ID_ES || 'moss_audio_cfe8feff-e110-11f1-85b0-1a2aa8b64369',
         minimaxVoiceIdEn: process.env.MINIMAX_VOICE_ID_EN || 'moss_audio_7057baaa-e111-11f1-8c36-4ef8da7daf14',
         voicestudioUrl: process.env.VOICESTUDIO_URL || 'http://127.0.0.1:3900',
-        vmakeAk: process.env.VMAKE_AK || process.env.MT_AK || '',
-        vmakeSk: process.env.VMAKE_SK || process.env.MT_SK || '',
+        vmakeAk: maskSecret(process.env.VMAKE_AK || process.env.MT_AK),
+        vmakeSk: maskSecret(process.env.VMAKE_SK || process.env.MT_SK),
         hasVmake: !!(process.env.VMAKE_AK || process.env.MT_AK),
         vmakeTask: process.env.VMAKE_TASK || 'SKM0002'
       });
@@ -1147,6 +1163,8 @@ const server = http.createServer(async (req, res) => {
 
       const updateEnvVar = (content, key, val) => {
         if (typeof val === 'undefined') return content;
+        // Impede quebrar o .env (ou injetar outras variáveis) com aspas ou quebras de linha
+        val = String(val).replace(/[\r\n"]/g, '');
         const regex = new RegExp(`^${key}=.*$`, 'm');
         if (regex.test(content)) {
           return content.replace(regex, `${key}="${val}"`);
@@ -1154,13 +1172,13 @@ const server = http.createServer(async (req, res) => {
         return content + (content.endsWith('\n') ? '' : '\n') + `${key}="${val}"\n`;
       };
 
-      if (typeof openaiKey === 'string') {
+      if (typeof openaiKey === 'string' && !isMaskedSecret(openaiKey)) {
         const cleanKey = openaiKey.trim();
         envContent = updateEnvVar(envContent, 'OPENAI_API_KEY', cleanKey);
         process.env.OPENAI_API_KEY = cleanKey;
       }
 
-      if (typeof minimaxKey === 'string') {
+      if (typeof minimaxKey === 'string' && !isMaskedSecret(minimaxKey)) {
         const cleanKey = minimaxKey.trim();
         envContent = updateEnvVar(envContent, 'MINIMAX_API_KEY', cleanKey);
         process.env.MINIMAX_API_KEY = cleanKey;
@@ -1190,7 +1208,7 @@ const server = http.createServer(async (req, res) => {
         process.env.VOICESTUDIO_URL = cleanVs;
       }
 
-      if (typeof vmakeAk === 'string') {
+      if (typeof vmakeAk === 'string' && !isMaskedSecret(vmakeAk)) {
         const cleanAk = vmakeAk.trim();
         envContent = updateEnvVar(envContent, 'VMAKE_AK', cleanAk);
         envContent = updateEnvVar(envContent, 'MT_AK', cleanAk);
@@ -1198,7 +1216,7 @@ const server = http.createServer(async (req, res) => {
         process.env.MT_AK = cleanAk;
       }
 
-      if (typeof vmakeSk === 'string') {
+      if (typeof vmakeSk === 'string' && !isMaskedSecret(vmakeSk)) {
         const cleanSk = vmakeSk.trim();
         envContent = updateEnvVar(envContent, 'VMAKE_SK', cleanSk);
         envContent = updateEnvVar(envContent, 'MT_SK', cleanSk);
@@ -1560,7 +1578,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ----------------------------------------------------
-    // API: Gerar Áudio com Voz MiniMax "Curiosidades" (Multi-Idioma)
+    // API: Gerar Áudio com Voz WStudios V4 (fallback OpenAI TTS) (Multi-Idioma)
     // ----------------------------------------------------
     if (pathname === '/api/generate-audio' && req.method === 'POST') {
       const { project, text, voice, speed = 1.3, trimSilence = true, minSilence = 350, keepSilence = 200, lang = 'pt' } = await parseBody(req);
@@ -1596,11 +1614,11 @@ const server = http.createServer(async (req, res) => {
         }
       } catch (genErr) {
         if (fs.existsSync(tempTxt)) fs.unlinkSync(tempTxt);
-        return sendJson(res, 500, { error: 'Falha na geração via MiniMax TTS', detail: genErr.message });
+        return sendJson(res, 500, { error: 'Falha na geração de voz (WStudios/OpenAI TTS)', detail: genErr.message });
       }
 
       if (!fs.existsSync(audioPath)) {
-        return sendJson(res, 500, { error: `Arquivo ${audioFileName} não foi gerado pelo MiniMax` });
+        return sendJson(res, 500, { error: `Arquivo ${audioFileName} não foi gerado pelo TTS` });
       }
 
       // Se trimSilence estiver ativo (padrão true), corta os silêncios mortos
@@ -2038,7 +2056,7 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
-    // 2. Gerar áudio através do roteiro de narração (MiniMax TTS com idioma escolhido)
+    // 2. Gerar áudio através do roteiro de narração (WStudios V4 com idioma escolhido)
     if (pathname === '/api/manual/generate-narration' && req.method === 'POST') {
       const { project, text, lang = 'pt', speed = 1.05 } = await parseBody(req);
       if (!project) return sendJson(res, 400, { error: 'Nome do projeto necessário' });
@@ -2068,11 +2086,11 @@ const server = http.createServer(async (req, res) => {
         }
       } catch (genErr) {
         if (fs.existsSync(tempTxt)) fs.unlinkSync(tempTxt);
-        return sendJson(res, 500, { error: 'Falha na geração via MiniMax TTS', detail: genErr.message });
+        return sendJson(res, 500, { error: 'Falha na geração de voz (WStudios/OpenAI TTS)', detail: genErr.message });
       }
 
       if (!fs.existsSync(audioPath)) {
-        return sendJson(res, 500, { error: `Arquivo ${audioFileName} não foi gerado pelo MiniMax` });
+        return sendJson(res, 500, { error: `Arquivo ${audioFileName} não foi gerado pelo TTS` });
       }
 
       let duration = 0;

@@ -1,7 +1,7 @@
 /**
  * queue_manager.js - Gerenciador de Fila Paralela de Produção LUMIX
  * Controla concorrência de até 4 vídeos simultâneos nas etapas pesadas (Download + VMake API),
- * continuando de forma contínua pelo restante do pipeline (Whisper -> MiniMax -> 9:16 Render -> Copys).
+ * continuando de forma contínua pelo restante do pipeline (Whisper -> TTS WStudios -> 9:16 Render -> Copys).
  */
 
 const fs = require('node:fs');
@@ -283,7 +283,7 @@ class ProductionQueue {
         item.currentStep = `${langPrefix}Storytelling Viral & Roteiro`;
         item.progress = 68;
       } else if (text.includes('[VOZ]')) {
-        item.currentStep = `${langPrefix}Síntese de Voz Ultra-Realista MiniMax`;
+        item.currentStep = `${langPrefix}Síntese de Voz WStudios V4`;
         item.progress = 78;
       } else if (text.includes('[ÁUDIO]')) {
         item.currentStep = `${langPrefix}Higienização e Corte de Silêncios`;

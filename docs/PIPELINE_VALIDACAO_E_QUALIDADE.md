@@ -1,145 +1,142 @@
 # Pipeline de Produção, Validação e Qualidade de Vídeos (LUMIX Studio)
 
-Este documento descreve detalhadamente a arquitetura, o fluxo de execução e os critérios rigorosos de validação de qualidade aplicados na esteira de produção automatizada de vídeos curtos (YouTube Shorts, Reels, TikTok).
+Este documento descreve o fluxo de produção automatizada de vídeos curtos (YouTube Shorts, Reels, TikTok) **como ele está implementado hoje** e as validações que de fato rodam.
+
+Arquivos principais: `scripts/auto_pilot_pipeline.js` (piloto automático), `dashboard/queue_manager.js` (fila), `remove-watermark.js` + `vmake_pool.js` + `scripts/vmake_api_client.js` (VMake), `dashboard/server.js` (Estúdio Manual e etapas avulsas).
 
 ---
 
-## 1. Visão Geral da Arquitetura
-
-O pipeline é composto por 6 módulos principais que atuam de forma sequencial e validada:
+## 1. Visão Geral
 
 ```
-[ Download Original ] 
-       │
-       ▼
-[ Remoção VMake (Inteligente Pro) ] ──► [ Validação Visual de Frames ]
-       │
-       ▼
-[ Transcrição & Roteiro Viral ] ──► [ Normalização Fonética ]
-       │
-       ▼
-[ Síntese Chunked VoiceStudio GPU (1.25x) ] ──► [ Corte de Silêncio Suave ] ──► [ Validação de Fala ]
-       │
-       ▼
-[ Cortes Rítmicos no Vídeo (Retenção) ]
-       │
-       ▼
-[ Sincronização Áudio-Vídeo (final.mp4) ]
-       │
-       ▼
-[ Legendas ASS Dinâmicas (Extraídas do final.mp4) ]
-       │
-       ▼
-[ Render 9:16 Vertical (Tela Cheia Nativa) ] ──► [ Validação Final ]
+Fila de produção (até 4 vídeos em paralelo) → auto_pilot_pipeline.js
+  1. Download (yt-dlp)                         → original.mp4
+  2. VMake API (remoção de legendas/marcas)    → sem_marca.mp4   [validado com ffprobe]
+  3. Frames de controle (5s, 15s, 20s, 30s)    → clean_val_*.jpg (auditoria manual)
+  4. Transcrição em inglês (OpenAI Whisper API)→ transcricao_original.txt
+  5. Cortes rítmicos (remove 0,5s a cada 3s)   → video_cortado.mp4
+  6. Para cada idioma (pt, es, en):
+       tradução/adaptação (gpt-4o-mini)        → roteiro_traduzido[_xx].txt
+       normalização fonética
+       voz (WStudios V4, fallback OpenAI TTS)  → narracao[_xx].mp3
+       corte de silêncios                       → narracao_trimmed[_xx].mp3
+       mesclagem voz + vídeo + trilha           → final[_xx].mp4
+       legendas palavra por palavra             → legendas[_xx].ass
+       render 9:16 1080x1920                    → video_9x16[_xx].mp4
+       copys de postagem
 ```
 
----
-
-## 2. Etapa 1: Remoção de Marca d'Água e Legendas (VMake)
-
-### Requisitos Obrigatórios:
-1. **Remoção Dupla:** Eliminar tanto o logotipo/marca d'água do canal quanto todas as legendas originais em inglês embutidas na imagem.
-2. **Modo:** Utilizar exclusivamente o modo **"Inteligente Pro"** do VMake, que emprega inpainting generativo temporal frame a frame.
-
-### Protocolo de Validação Visual:
-Para evitar qualquer avanço com resquícios ou falhas de processamento:
-1. **Limpeza Prévia do Editor:** O script Playwright deve obrigatoriamente deletar cards concluídos de projetos anteriores antes de submeter o novo vídeo, evitando que um download prematuro pegue um vídeo antigo da fila.
-2. **Extração de Frames de Controle:** Extrair frames em alta definição nos instantes-chave do vídeo (ex: `5s`, `15s`, `20s`, `30s`, `45s`).
-   ```bash
-   ffmpeg -ss 00:00:20 -i "sem_marca.mp4" -vframes 1 -q:v 2 "vmake_verify_20s.jpg" -y
-   ```
-3. **Inspeção Visual:**
-   - Conferir se o rodapé/topo está limpo (sem `@BrainBlud` ou logos).
-   - Conferir se o centro da tela não possui palavras fantasmas ou borrados grosseiros.
+Cada etapa reaproveita o arquivo já existente, e o pipeline pode ser retomado com `--from-step <etapa>` (`transcribe`, `translate`, `tts`, `trim`, `cut`, `merge`, `render_9x16`, `post_copy`).
 
 ---
 
-## 3. Etapa 2: Áudio, Narração, Fonética e Higienização de Silêncio
+## 2. Etapa VMake (remoção de legendas e marcas d'água)
 
-### 1. Normalização Fonética Pré-TTS (Obrigatório):
-Motores neurais de TTS (como F5-TTS, Kokoro e Chatterbox) interpretam símbolos soltos ou abreviações de forma imprevisível ou com fonética inglesa:
-* **Problema do Cifrão (`$`):** Símbolos monetários crus (`$1`, `$4`, `$8`) faziam a IA pronunciar a palavra como oxítona com sílaba tônica no final ("do-LÁR").
-* **Regra de Ouro:** Todos os símbolos monetários e abreviações numéricas devem ser normalizados por extenso com acentuação ortográfica gráfica:
-  * `$1` ➔ `"um dólar"`
-  * `$2` ➔ `"dois dólares"`
-  * `$4` ➔ `"quatro dólares"`
-  * `$16` ➔ `"dezesseis dólares"`
-  * `11h` ➔ `"onze horas"` (ou `"onze da manhã"`)
-* **Resultado:** Dicção 100% brasileira, natural, com acentuação correta e fluidez humana.
+### Função usada
+Definida por `VMAKE_TASK` no `.env` (escolhida no painel de Configurações):
 
-### 2. Síntese em Velocidade Neural Nativa (1.25x) vs Aceleração DSP:
-* **Problema de Aceleração por Software (`atempo`):** Tentar acelerar uma narração lenta no FFmpeg com filtros de tempo (`atempo=1.20+`) deforma os formantes vocais, gerando um tom metálico, robótico e agudo ("efeito esquilo").
-* **Regra de Ouro:** A aceleração necessária para o ritmo dinâmico de Shorts deve ser configurada **diretamente no parâmetro nativo do modelo de TTS (`speed: 1.25` a `1.30`)**.
-* **Resultado:** A fala já é sintetizada com articulação acelerada nativa de estúdio, preservando graves encorpados, clareza e fidelidade orgânica da voz.
+| Código | O que remove |
+|---|---|
+| `SKM0002` (padrão) | Só legendas embutidas. **Não remove logo/marca d'água do canal.** |
+| `SKM0005` | Smart Pro: logos e textos (remoção completa) |
+| `SKM0007` | Marca d'água específica |
+| `SKM0003` | Smart rápido |
 
-### 3. Chunking Seguro de Textos Longos (Prevenção de Estouro de VRAM / Erro 10054):
-* Textos extensos (> 800 caracteres) causam estouro de memória VRAM na GPU durante a geração da marca d'água sintética (`AudioSeal`), resultando na queda súbita do backend (`ConnectionResetError [WinError 10054]`).
-* **Solução:** O script `synthesize_chunked.py` divide o roteiro automaticamente em blocos seguros (~750 a 800 caracteres) respeitando fronteiras de pontuação final (`.`, `!`, `?`), sintetiza cada bloco na GPU de forma estável e os une via FFmpeg `concat`.
+Se o vídeo de origem tem logo do canal (ex.: `@BrainBlud`), é preciso `SKM0005` ou `SKM0007`.
 
-### 4. Calibração do Corte de Silêncio (`trim-silence.py`):
-Para evitar cortes agressivos que engolem o final das frases ou geram sensação de gagueira:
-* **`min_silence_len = 320ms`**: Não corta micropausas naturais entre palavras ou sons consonantais.
-* **`keep_silence = 150ms`**: Mantém 150 milissegundos de respiro acústico entre sentenças.
-* **`padding = 100ms`**: Adiciona margem de segurança nas bordas de cada fala para preservar vogais finais e respirações humanas.
-* **`merge_distance = 220ms`**: Se duas palavras tiverem menos de 220ms entre si, elas são mantidas como um único bloco indivisível.
+### Fluxo (`VMakeApiClient.cleanVideo`)
+1. `fetchConfig`: catálogo de funções.
+2. Upload do `original.mp4` para o OSS (token STS temporário, multipart de 2MB, 3 tentativas).
+3. `consumeQuota`: debita o crédito.
+4. `submitTask`: envia a tarefa assíncrona. **O Task ID é salvo em `vmake_task.json` na pasta do projeto.**
+5. `pollTask`: consulta o status até concluir.
+6. Download do resultado para `sem_marca.mp4.download`, validação e só então renomeia para `sem_marca.mp4`.
 
-### 5. Protocolo de Validação de Áudio:
-* Executar transcrição de volta (round-trip) via Whisper no arquivo `narracao_trimmed.mp3`.
-* Conferir se o texto transcrito corresponde integralmente ao roteiro sem repetições de palavras (gagueira) ou finais cortados.
+### Proteções
+- **Retomada sem gastar crédito:** se o processo cair depois do envio (cancelamento, reinício, queda de rede), a próxima execução encontra `vmake_task.json` e volta a consultar a mesma tarefa, sem novo upload e sem novo crédito. A retomada só vale para o mesmo `original.mp4`, a mesma função SKM e tarefas enviadas há menos de 6h. Para forçar um envio novo, apague `vmake_task.json`.
+- **Tempo máximo:** o polling desiste após `VMAKE_POLL_TIMEOUT_MIN` minutos (padrão 60) ou 30 falhas de rede seguidas. Falha reportada pelo VMake (status 2/20) encerra na hora e descarta a retomada.
+- **Download validado:** conexão interrompida ou bytes a menos que o `Content-Length` fazem o download falhar. Depois, o `ffprobe` confere se o arquivo é um vídeo legível e se a duração bate com o original (tolerância de 10% ou 2s). Um arquivo inválido nunca vira `sem_marca.mp4`.
+- **`sem_marca.mp4` antigo inválido:** ao rodar desde o início, o piloto automático revalida o arquivo existente; se estiver corrompido, ele é renomeado para `sem_marca_invalido.mp4` e a limpeza é refeita.
+- **Máximo de 4 tarefas simultâneas no VMake, somando todos os processos:** as vagas são arquivos de trava em `VMAKE_SLOTS_DIR` (padrão: pasta temporária do sistema, `lumix_vmake_slots`). Vaga de processo morto é liberada automaticamente.
 
----
-
-## 4. Etapa 3: Cortes Rítmicos e Sincronia de Pacing
-
-Para maximizar a retenção nos primeiros 30 a 60 segundos do Short:
-1. **Cortes Rítmicos Condicionais:**
-   * Se o vídeo limpo for mais longo que a narração (`cleanDur - audioDur > 0.5s`), aplica a fórmula de microcortes rítmicos (mantém `3.0s` e remove `0.15s` a `0.5s`).
-   * Se o vídeo já for mais curto ou equivalente à narração, mantém a integridade visual total sem cortes desnecessários.
-2. **Sincronia Milimétrica:**
-   * Mede a duração exata do vídeo cortado e da narração higienizada.
-   * Aplica modulação proporcional mínima apenas para casamento fino de finalização.
+### Validação visual (manual)
+O pipeline extrai frames em 5s, 15s, 20s e 30s (`clean_val_*.jpg`), mas **não os analisa**. Conferir:
+- rodapé/topo sem logos ou `@canal`;
+- centro sem palavras fantasmas ou borrões grosseiros.
 
 ---
 
-## 5. Etapa 4: Legendas Dinâmicas ASS (Regra de Sincronia Absoluta)
+## 3. Transcrição e Roteiro
 
-### Regra de Ouro de Sincronização:
-* **Causa do Desalinhamento:** Gerar legendas a partir de áudios intermediários (`narracao.mp3` ou `narracao_trimmed.mp3`) gera atrasos cumulativos de até 10 a 20 segundos em relação ao vídeo final.
-* **Solução Obrigatória:** O Whisper **deve transcrever diretamente o arquivo de vídeo final montado (`final.mp4`)**. Como o arquivo de vídeo final já possui a trilha sonora definitiva sincronizada no tempo zero, cada timestamp de palavra gerado fica **100% travado e perfeitamente síncrono com a imagem e a fala**.
+- **Transcrição:** OpenAI Whisper API sobre o `original.mp4`, forçando inglês.
+- **Adaptação:** `gpt-4o-mini` (temperatura 0.3) com os prompts de `scripts/lang_config.js`.
+- **Falha na tradução interrompe o pipeline** para PT e ES (sem chave OpenAI, erro HTTP ou resposta vazia). Antes, o texto em inglês era narrado com voz em português sem aviso. Só a versão EN aceita cair para a transcrição original.
 
-### Estilização Visual de Alto Impacto:
-* **Fonte:** `Arial Black` ou `Montserrat Heavy`
-* **Tamanho:** `50px` (escala 720x1280)
-* **Cor primária:** Branco puro (`&H00FFFFFF`)
-* **Borda/Contorno:** Preto sólido de 5px (`&H00000000`)
-* **Sombra:** Suave translúcida de 2px
-* **Alinhamento:** `5` (Centro exato da tela)
-* **Formato:** Letras maiúsculas (`UPPERCASE`) com exibição palavra por palavra (word-by-word highlight).
+### Normalização fonética pré-TTS
+Símbolos monetários e horas são escritos por extenso antes da síntese, para a voz não ler com fonética errada:
+- `$1` ➔ `um dólar`, `$4` ➔ `quatro dólares`, `$16` ➔ `dezesseis dólares`
+- `11h` ➔ `11 horas`
+
+Limitação: a tabela de números é fixa; valores fora dela viram `N dólares`, e decimais como `$1.5` não são tratados.
 
 ---
 
-## 6. Etapa 5: Renderização 9:16 Vertical (Tela Cheia Nativa)
+## 4. Voz e Silêncios
 
-### Critérios de Enquadramento:
-* **Dimensões Finais:** `720x1280` com `SAR 1:1` e `DAR 9:16`.
-* **Sem Efeito Quadrado:** Evitar o uso de molduras centrais 1:1 (`crop=720:720`) que forçam reprodutores a exibir o vídeo como um quadrado. O vídeo deve ocupar 100% do campo visual vertical do smartphone.
-* **Fórmula Universal de Crop 9:16 (Auto-Aspect):**
-  Funciona com qualquer formato de origem (quadrado 1:1, horizontal 16:9 ou vertical nativo):
-  ```bash
-  crop='min(iw,ih*9/16)':'min(ih,iw*16/9)':(iw-ow)/2:(ih-oh)/2,scale=720:1280,setsar=1
-  ```
+### Síntese (`scripts/synthesize_minimax.js`, nome mantido por compatibilidade)
+- **Primário:** WStudios API, motor Ultra V4 (`eleven_v4`), voz por idioma em `WSTUDIOS_VOICE_ID_*`.
+- **Fallback automático:** OpenAI `tts-1-hd`, voz `onyx`.
+- **Velocidade nativa do modelo:** 1.3 no piloto automático, 1.05 no Estúdio Manual. A aceleração é feita no próprio TTS, não com `atempo`, para não deixar a voz metálica.
+- Textos acima de 45.000 caracteres são divididos em blocos por frase.
 
-### Filtro FFmpeg Consolidado:
-```bash
-ffmpeg -y -i "final.mp4" -vf "crop='min(iw,ih*9/16)':'min(ih,iw*16/9)':(iw-ow)/2:(ih-oh)/2,scale=720:1280,setsar=1,subtitles='legendas.ass'" -c:v libx264 -preset fast -crf 20 -c:a copy "video_9x16.mp4"
-```
+### Corte de silêncio (`scripts/trim-silence.py`)
+| Parâmetro | Valor |
+|---|---|
+| `min_silence_len` | 350ms |
+| `keep_silence` (respiro entre frases) | 200ms |
+| `padding` (margem antes/depois da fala) | 90ms |
+| distância para unir trechos | 200ms |
+| limiar de silêncio | `max(dBFS − 15, −36)` |
+
+Cada trecho recebe fade de 10ms nas bordas para evitar cliques.
 
 ---
 
-## 7. Checklist de Validação Final Antes de Publicar
+## 5. Cortes Rítmicos e Mesclagem
 
-- [x] **Enquadramento 9:16:** Vídeo final em tela cheia vertical pura (720x1280 com SAR 1:1 e DAR 9:16), sem barras pretas ou efeito quadrado.
-- [x] **Limpeza Visual:** Zero marcas d'água originais ou legendas em inglês antigas.
-- [x] **Dicção Fonética:** Valores numéricos e monetários lidos com acentuação correta (*dólar* / *dólares*), sem entonações oxítonas errôneas.
-- [x] **Qualidade da Voz:** Locução fluida gerada na velocidade nativa (1.25x), sem efeitos metálicos ou robóticos de aceleração pós-processada.
-- [x] **Sincronia Perfeita de Legenda:** Legendas extraídas do `final.mp4`, piscando no milissegundo exato da voz e da cena.
+- **Cortes:** o piloto automático sempre remove 0,5s a cada 3s de vídeo (cerca de 14% da duração), sem considerar a duração da narração.
+- **Sincronia:** se a narração passar de 110% da duração do vídeo cortado, ela é acelerada com `atempo` para caber.
+- **Áudio:** voz normalizada em −14 LUFS (`loudnorm I=-14:TP=-1.5:LRA=7`); trilha `assets/music/Ogryzek.mp3` em loop a 15% (13% por padrão no Estúdio Manual, ajustável no mixer).
+
+---
+
+## 6. Legendas Dinâmicas (`scripts/generate-subtitles.py`)
+
+- **Regra de sincronia:** o Whisper (faster-whisper, modelo `base`, CPU) transcreve o **vídeo final já montado** (`final.mp4`), e não os áudios intermediários. Assim os tempos de cada palavra batem com a imagem e a voz.
+- **Estilo:** Arial Black 75px, branco, contorno preto de 7px, sombra de 3px, centralizado (alinhamento 5), em MAIÚSCULAS, uma palavra por vez, em resolução 1080x1920.
+
+---
+
+## 7. Render 9:16 (1080x1920)
+
+Existem dois enquadramentos, conforme o caminho usado:
+
+| Caminho | Enquadramento |
+|---|---|
+| Piloto automático e "Gerar 9:16" (`/api/generate-square-subtitles`) | Recorte quadrado central (zoom 1.05x) em 1080x1080 sobre fundo desfocado, com anti-duplicidade: espelhamento horizontal (desligável com `ANTI_HASH_HFLIP=false`), contraste/saturação +2–4% e velocidade 1.03x |
+| Estúdio Manual (`/api/manual/render-4x5-to-9x16`, `/api/manual/run-all`) | Recorte 4:5 em 1080x1350 sobre fundo desfocado, sem anti-duplicidade |
+
+Codificação: `libx264` CRF 19–20, AAC 192k, `+faststart`. Frames de conferência em 5s e 20s (`final_val_*.jpg`).
+
+---
+
+## 8. Checklist Manual Antes de Publicar
+
+Nenhum destes itens é verificado automaticamente:
+
+- [ ] **Limpeza visual:** sem marcas d'água ou legendas originais (conferir `clean_val_*.jpg`; lembrar que `SKM0002` não remove logos).
+- [ ] **Idioma da voz:** narração no idioma certo e sem trechos em inglês.
+- [ ] **Dicção:** valores monetários e números lidos corretamente.
+- [ ] **Voz:** fluida, sem efeito metálico (sinal de `atempo` alto na mesclagem).
+- [ ] **Legendas:** sincronizadas e sem palavras trocadas pelo Whisper `base`.
+- [ ] **Enquadramento:** 1080x1920 sem barras pretas (conferir `final_val_*.jpg`).
