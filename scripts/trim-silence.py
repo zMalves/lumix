@@ -8,7 +8,7 @@ def trim_silences(
     output_path: str = None,
     min_silence_len: int = 350,    # milissegundos mínimos para considerar pausa (calibrado para cortes naturais sem picotar fala)
     keep_silence: int = 200,        # milissegundos de respiro natural mantidos entre frases (ritmo dinâmico sem afobação)
-    padding: int = 90,              # milissegundos de margem de segurança antes/depois da fala para jamais cortar fonemas ou consoantes
+    padding: int = 150,             # milissegundos de margem antes/depois da fala para não cortar o final das palavras (era 90, cortava sílabas finais)
     silence_thresh: float = None    # dBFS limite (se None, auto-calculado)
 ):
     if not os.path.exists(input_path):
@@ -21,8 +21,9 @@ def trim_silences(
     orig_duration_sec = len(audio) / 1000.0
 
     # Auto-calcula limiar ágil mas suave para Shorts
+    # Limiar mais permissivo: caudas fracas do fim de frase (voz caindo) não são tratadas como silêncio
     if silence_thresh is None:
-        silence_thresh = max(audio.dBFS - 15.0, -36.0)
+        silence_thresh = max(audio.dBFS - 25.0, -50.0)
 
     # Detecta todos os intervalos onde há fala
     nonsilent_ranges = detect_nonsilent(
@@ -56,7 +57,9 @@ def trim_silences(
 
     # Monta o novo áudio mantendo respiro natural e suave crossfade
     trimmed_audio = AudioSegment.empty()
-    breath = AudioSegment.silent(duration=keep_silence)
+    # A margem já adiciona silêncio nas duas bordas de cada trecho; o respiro extra
+    # é só a diferença, para não alongar o áudio além do ritmo desejado.
+    breath = AudioSegment.silent(duration=max(0, keep_silence - 2 * padding))
 
     for i, (start_ms, end_ms) in enumerate(merged_ranges):
         s = max(0, start_ms - padding)

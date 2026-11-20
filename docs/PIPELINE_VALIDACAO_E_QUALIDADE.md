@@ -93,10 +93,10 @@ Limitação: a tabela de números é fixa; valores fora dela viram `N dólares`,
 | Parâmetro | Valor |
 |---|---|
 | `min_silence_len` | 350ms |
-| `keep_silence` (respiro entre frases) | 200ms |
-| `padding` (margem antes/depois da fala) | 90ms |
+| `keep_silence` (respiro entre frases) | 200ms, já incluindo as margens: o silêncio extra é `max(0, keep_silence − 2 × padding)` |
+| `padding` (margem antes/depois da fala) | 150ms, para não cortar sílabas finais |
 | distância para unir trechos | 200ms |
-| limiar de silêncio | `max(dBFS − 15, −36)` |
+| limiar de silêncio | `max(dBFS − 25, −50)`, permissivo para manter caudas fracas de fim de frase |
 
 Cada trecho recebe fade de 10ms nas bordas para evitar cliques.
 
