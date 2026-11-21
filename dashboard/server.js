@@ -37,6 +37,30 @@ const { narrationLimits, lengthInstruction } = require('../scripts/narration_fit
 // Estado dos processos em background (ex: VMake)
 const activeJobs = new Map();
 
+// Mixer do Estúdio Manual (Etapas 4 e 5): origVolume / voiceVolume / musicVolume chegam em % (0-200)
+// dos sliders do painel. Sem origVolume, mantém o comportamento antigo (30% se "reduzir", senão 100%).
+// (Restaurado do commit 428146f; o fa32c2b havia trocado por uma versão antiga sem os sliders.)
+function resolveMixVolumes(body = {}, reduceOriginalVolume = false) {
+  const toFactor = (pct, fallbackPct) => {
+    const n = Number(pct);
+    const v = (pct === undefined || pct === null || pct === '' || !Number.isFinite(n)) ? fallbackPct : n;
+    return (Math.min(200, Math.max(0, v)) / 100).toFixed(2);
+  };
+  return {
+    origVol: toFactor(body.origVolume ?? body.originalVolume, reduceOriginalVolume ? 30 : 100),
+    voiceVol: toFactor(body.voiceVolume, 100),
+    musicVol: toFactor(body.musicVolume, 100)
+  };
+}
+
+// Música de fundo: normalizada para MUSIC_LUFS antes do volume do mixer (100% = 12 dB abaixo da voz em -14 LUFS).
+// Um volume fixo (0.13) deixava a música ~21 dB abaixo da voz depois que a voz passou a sair em -14 LUFS.
+const MUSIC_LUFS = -26;
+function musicChain(musicVol = '1.00') {
+  // O aformat depois do aresample é obrigatório no ffmpeg 5.1 do contêiner (sem ele: "Cannot select channel layout").
+  return `aformat=sample_fmts=fltp:channel_layouts=stereo,loudnorm=I=${MUSIC_LUFS}:TP=-3:LRA=11,aresample=44100,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,volume=${musicVol}`;
+}
+
 function sendJson(res, statusCode, data) {
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
@@ -2166,17 +2190,15 @@ const server = http.createServer(async (req, res) => {
 
     // 4. Juntar Narração + Vídeo + Trilha Sonora (com Mixer de Áudio: Voz, Áudio Original e Música)
     if (pathname === '/api/manual/merge-sync' && req.method === 'POST') {
+      const mixBody = await parseBody(req);
       const {
         project,
         lang = 'pt',
         keepOriginalAudio = false,
         reduceOriginalVolume = false,
         withMusic = true,
-        fitAudioSpeed = true,
-        voiceVolume = 100,
-        originalVolume,
-        musicVolume = 13
-      } = await parseBody(req);
+        fitAudioSpeed = true
+      } = mixBody;
       if (!project) return sendJson(res, 400, { error: 'Nome do projeto necessário' });
       const folderPath = path.join(VIDEOS_DIR, project);
       if (!fs.existsSync(folderPath)) return sendJson(res, 404, { error: 'Pasta do projeto não encontrada' });
@@ -2224,30 +2246,10 @@ const server = http.createServer(async (req, res) => {
       const finalName = lang === 'pt' ? 'final.mp4' : `final_${lang}.mp4`;
       const finalFile = path.join(folderPath, finalName);
 
-      // MIXER DE ÁUDIO MULTI-PISTAS
-      // 1. Voz (0% a 200%, default 100% -> 1.0)
-      const vPercent = Math.max(0, Math.min(200, parseFloat(voiceVolume) ?? 100));
-      const voiceScale = (vPercent / 100).toFixed(2);
-
-      // 2. Áudio original (0% a 150%)
-      let oPercent = 0;
-      if (originalVolume !== undefined && originalVolume !== null && originalVolume !== '') {
-        oPercent = Math.max(0, Math.min(150, parseFloat(originalVolume)));
-      } else if (keepOriginalAudio) {
-        oPercent = reduceOriginalVolume ? 30 : 100;
-      }
-      const origScale = (oPercent / 100).toFixed(2);
-      const includeOriginal = videoHasAudio && oPercent > 0;
-
-      // 3. Música de fundo (0% a 100%)
-      let mPercent = 0;
-      if (withMusic && hasBgMusic) {
-        mPercent = musicVolume !== undefined && musicVolume !== null && musicVolume !== ''
-          ? Math.max(0, Math.min(100, parseFloat(musicVolume)))
-          : 13;
-      }
-      const musicScale = (mPercent / 100).toFixed(2);
-      const includeMusic = hasBgMusic && mPercent > 0;
+      // MIXER DE ÁUDIO (sliders da Etapa 4, em % 0-200): voz, áudio original e música
+      const { origVol: origScale, voiceVol: voiceScale, musicVol } = resolveMixVolumes(mixBody, reduceOriginalVolume);
+      const includeOriginal = Boolean(keepOriginalAudio) && videoHasAudio && Number(origScale) > 0;
+      const includeMusic = hasBgMusic && Number(musicVol) > 0;
 
       let ffmpegInputs = `-i "${videoFile}" -i "${audioFile}"`;
       const filterParts = [];
@@ -2263,7 +2265,7 @@ const server = http.createServer(async (req, res) => {
 
       if (includeMusic) {
         ffmpegInputs += ` -stream_loop -1 -i "${bgMusicFile}"`;
-        filterParts.push(`[2:a]volume=${musicScale}[bg]`);
+        filterParts.push(`[2:a]${musicChain(musicVol)}[bg]`);
         mixInputs.push('[bg]');
       }
 
@@ -2347,7 +2349,8 @@ const server = http.createServer(async (req, res) => {
 
     // 5. Etapa final: 4:5 para 9:16 Full HD com bordas desfocadas + opacidade reduzida + legendas (Sem anti-hash)
     if (pathname === '/api/manual/render-4x5-to-9x16' && req.method === 'POST') {
-      const { project, lang = 'auto', useBaseVideo = false, keepOriginalAudio = true, reduceOriginalVolume = false, withMusic = true, originalVolume = null, musicVolume = null } = await parseBody(req);
+      const mixBody = await parseBody(req);
+      const { project, lang = 'auto', useBaseVideo = false, keepOriginalAudio = true, reduceOriginalVolume = false, withMusic = true } = mixBody;
       if (!project) return sendJson(res, 400, { error: 'Nome do projeto necessário' });
       const folderPath = path.join(VIDEOS_DIR, project);
       if (!fs.existsSync(folderPath)) return sendJson(res, 404, { error: 'Pasta do projeto não encontrada' });
@@ -2421,10 +2424,9 @@ const server = http.createServer(async (req, res) => {
           } catch (_) { }
 
           const bgMusicFile = path.join(ROOT_DIR, 'assets', 'music', 'Ogryzek.mp3');
-          const musicScale = (musicVolume !== null && musicVolume !== undefined)
-            ? (Math.max(0, Math.min(100, Number(musicVolume))) / 100).toFixed(2)
-            : '0.14';
-          const hasBgMusic = Boolean(withMusic) && (Number(musicScale) > 0) && fs.existsSync(bgMusicFile);
+          // Mixer da Etapa 5 (sliders em % 0-200; acompanham os da Etapa 4)
+          const { origVol: origScale, musicVol } = resolveMixVolumes(mixBody, reduceOriginalVolume);
+          const hasBgMusic = Boolean(withMusic) && (Number(musicVol) > 0) && fs.existsSync(bgMusicFile);
 
           if (videoHasAudio) {
             console.log(`[Manual Master] Gerando legendas dinâmicas (${effectiveLang.toUpperCase()})...`);
@@ -2464,15 +2466,12 @@ const server = http.createServer(async (req, res) => {
           let extraFlags = '';
 
           if (useBaseVideo) {
-            const origScale = (originalVolume !== null && originalVolume !== undefined)
-              ? (Math.max(0, Math.min(150, Number(originalVolume))) / 100).toFixed(2)
-              : (reduceOriginalVolume ? '0.30' : '1.00');
             const hasOrig = videoHasAudio && (keepOriginalAudio !== false) && (Number(origScale) > 0);
 
             if (hasOrig && hasBgMusic) {
               ffmpegInputs = `-i "${inputVid}" -stream_loop -1 -i "${bgMusicFile}"`;
               filterParts.push(`[0:a]volume=${origScale}[orig_a]`);
-              filterParts.push(`[1:a]volume=${musicScale}[bg_music]`);
+              filterParts.push(`[1:a]${musicChain(musicVol)}[bg_music]`);
               filterParts.push(`[orig_a][bg_music]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[outa]`);
               audioMaps = '-map "[outa]"';
               extraFlags = '-shortest';
@@ -2481,7 +2480,7 @@ const server = http.createServer(async (req, res) => {
               audioMaps = '-map "[outa]"';
             } else if (!hasOrig && hasBgMusic) {
               ffmpegInputs = `-i "${inputVid}" -stream_loop -1 -i "${bgMusicFile}"`;
-              filterParts.push(`[1:a]volume=${musicScale},aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[outa]`);
+              filterParts.push(`[1:a]${musicChain(musicVol)},aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[outa]`);
               audioMaps = '-map "[outa]"';
               extraFlags = '-shortest';
             } else {
@@ -2531,7 +2530,8 @@ const server = http.createServer(async (req, res) => {
 
     // 6. Pipeline 1-Clique: executa todo o fluxo manual de ponta a ponta
     if (pathname === '/api/manual/run-all' && req.method === 'POST') {
-      const { project, text, lang = 'pt', keepOriginalAudio = false, reduceOriginalVolume = false, withMusic = true, fitAudioSpeed = true, speed = 1.05, voiceVolume = 100, originalVolume, musicVolume = 13 } = await parseBody(req);
+      const mixBody = await parseBody(req);
+      const { project, text, lang = 'pt', keepOriginalAudio = false, reduceOriginalVolume = false, withMusic = true, fitAudioSpeed = true, speed = 1.05 } = mixBody;
       if (!project) return sendJson(res, 400, { error: 'Nome do projeto necessário' });
       if (!text || !text.trim()) return sendJson(res, 400, { error: 'Roteiro de narração não pode estar vazio' });
 
@@ -2598,27 +2598,10 @@ const server = http.createServer(async (req, res) => {
 
         const finalName = lang === 'pt' ? 'final.mp4' : `final_${lang}.mp4`;
         const finalFile = path.join(folderPath, finalName);
-        // MIXER DE ÁUDIO MULTI-PISTAS
-        const vPercent = Math.max(0, Math.min(200, parseFloat(voiceVolume) ?? 100));
-        const voiceScale = (vPercent / 100).toFixed(2);
-
-        let oPercent = 0;
-        if (originalVolume !== undefined && originalVolume !== null && originalVolume !== '') {
-          oPercent = Math.max(0, Math.min(150, parseFloat(originalVolume)));
-        } else if (keepOriginalAudio) {
-          oPercent = reduceOriginalVolume ? 30 : 100;
-        }
-        const origScale = (oPercent / 100).toFixed(2);
-        const includeOriginal = videoHasAudio && oPercent > 0;
-
-        let mPercent = 0;
-        if (withMusic && hasBgMusic) {
-          mPercent = musicVolume !== undefined && musicVolume !== null && musicVolume !== ''
-            ? Math.max(0, Math.min(100, parseFloat(musicVolume)))
-            : 13;
-        }
-        const musicScale = (mPercent / 100).toFixed(2);
-        const includeMusic = hasBgMusic && mPercent > 0;
+        // MIXER DE ÁUDIO (sliders da Etapa 4, em % 0-200): voz, áudio original e música
+        const { origVol: origScale, voiceVol: voiceScale, musicVol } = resolveMixVolumes(mixBody, reduceOriginalVolume);
+        const includeOriginal = Boolean(keepOriginalAudio) && videoHasAudio && Number(origScale) > 0;
+        const includeMusic = hasBgMusic && Number(musicVol) > 0;
 
         let ffmpegInputsMerge = `-i "${videoFile}" -i "${trimmedPath}"`;
         const filterPartsMerge = [];
@@ -2634,7 +2617,7 @@ const server = http.createServer(async (req, res) => {
 
         if (includeMusic) {
           ffmpegInputsMerge += ` -stream_loop -1 -i "${bgMusicFile}"`;
-          filterPartsMerge.push(`[2:a]volume=${musicScale}[bg]`);
+          filterPartsMerge.push(`[2:a]${musicChain(musicVol)}[bg]`);
           mixInputsMerge.push('[bg]');
         }
 
